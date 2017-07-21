@@ -86,21 +86,22 @@ var missing_functions = ['_Exit', '__addtf3', '__addtf3', '__block_all_sigs',
 '__mremap', '__multf3', '__multf3', '__multi3', '__munmap', '__netf2',
 '__netf2', '__nl_langinfo', '__nl_langinfo_l', '__randname',
 '__rem_pio2_large', '__restore_sigs', '__set_thread_area', '__stdio_write',
-'__stdout_write', '__subtf3', '__synccall', '__trunctfdf2', '__trunctfsf2',
-'__unlock', '__unlockfile', '__unordtf2', '__wait', '_pthread_cleanup_pop',
-'_pthread_cleanup_push', 'abort', 'backtrace', 'backtrace_symbols', 'btowc',
-'cabs', 'clock_get_time', 'clock_sleep', 'closelog', 'execv', 'execve',
-'execvp', 'fcntl', 'fdopen', 'feclearexcept', 'fegetround', 'feraiseexcept',
-'fesetround', 'fetestexcept', 'fork', 'fprintf', 'freeaddrinfo', 'getaddrinfo',
-'getgrgid_r', 'getgrnam_r', 'getloadavg', 'getnameinfo', 'getpriority',
-'getprotobyname', 'getpwnam_r', 'getpwuid_r', 'getrusage', 'gettimeofday',
-'host_get_clock_service', 'host_page_size', 'host_statistics',
-'if_nametoindex', 'ioctl', 'iswctype', 'iswspace', 'kevent', 'localtime_r',
-'longjmp', 'mach_absolute_time', 'mach_host_self', 'mach_port_deallocate',
-'mach_timebase_info', 'mbrtowc', 'mbsinit', 'mbsnrtowcs', 'mbstowcs', 'mbtowc',
-'mincore', 'mini_emit_memcpy', 'mini_gc_set_slot_type_from_cfa',
-'mini_gc_set_slot_type_from_fp', 'mkdir', 'mkstemp', 'mmap', 'mono_alloc_freg',
-'mono_alloc_ireg', 'mono_allocate_stack_slots', 'mono_arch_instrument_epilog',
+'__stdout_write', '__subtf3', '__synccall', '__syscall_cp', '__trunctfdf2',
+'__trunctfsf2', '__unlock', '__unlockfile', '__unordtf2', '__wait',
+'_pthread_cleanup_pop', '_pthread_cleanup_push', 'abort', 'backtrace',
+'backtrace_symbols', 'btowc', 'cabs', 'clock_get_time', 'clock_sleep',
+'closelog', 'execv', 'execve', 'execvp', 'fcntl', 'fdopen', 'feclearexcept',
+'fegetround', 'feraiseexcept', 'fesetround', 'fetestexcept', 'fork', 'fprintf',
+'freeaddrinfo', 'getaddrinfo', 'getgrgid_r', 'getgrnam_r', 'getloadavg',
+'getnameinfo', 'getpriority', 'getprotobyname', 'getpwnam_r', 'getpwuid_r',
+'getrusage', 'gettimeofday', 'host_get_clock_service', 'host_page_size',
+'host_statistics', 'if_nametoindex', 'ioctl', 'iswctype', 'iswspace', 'kevent',
+'localtime_r', 'longjmp', 'mach_absolute_time', 'mach_host_self',
+'mach_port_deallocate', 'mach_timebase_info', 'mbrtowc', 'mbsinit',
+'mbsnrtowcs', 'mbstowcs', 'mbtowc', 'mincore', 'mini_emit_memcpy',
+'mini_gc_set_slot_type_from_cfa', 'mini_gc_set_slot_type_from_fp', 'mkdir',
+'mkstemp', 'mmap', 'mono_alloc_freg', 'mono_alloc_ireg',
+'mono_allocate_stack_slots', 'mono_arch_instrument_epilog',
 'mono_bblock_insert_before_ins', 'mono_call_inst_add_outarg_reg',
 'mono_cfg_set_exception_invalid_program', 'mono_compile_create_var',
 'mono_decompose_op_imm', 'mono_emit_unwind_op', 'mono_file_map',
@@ -142,8 +143,9 @@ for (var i in missing_globals) {
 }
 
 var syscalls = {}
+var syscalls_names = {}
 
-// brk
+syscalls_names[45] = 'brk';
 syscalls[45] = function(inc) {
   if (inc == 0) {
     return heap_size_bytes;
@@ -161,13 +163,13 @@ syscalls[45] = function(inc) {
   return inc
 }
 
-// ioctl
+syscalls_names[54] = 'ioctl';
 syscalls[54] = function(fd, req, arg) {
   // TODO
   return 0
 }
 
-// writev
+syscalls_names[146] = 'write';
 syscalls[146] = function(fd, iovs, iov_count) {
   if (fd == 1 || fd == 2) {
     var str = ''
@@ -186,13 +188,13 @@ syscalls[146] = function(fd, iovs, iov_count) {
   return -1
 }
 
-// exit_group
+syscalls_names[252] = 'exit';
 syscalls[252] = function(code) {
   debug("exit(" + code + "): " + new Error().stack)
   throw new TerminateWasmException('SYS_exit_group(' + code + ')');
 }
 
-// clock_gettime
+syscalls_names[265] = 'clock_gettime';
 syscalls[265] = function(clock_id, timespec) {
   if (clock_id == 0) {
     var ms = new Date().getTime()
@@ -207,51 +209,23 @@ syscalls[265] = function(clock_id, timespec) {
   return -1
 }
 
-var syscall_stubs = (function() {
-  return {
-    __syscall0: function(n) {
-      debug('syscall(' + n + ')');
-      f = syscalls[n]
-      return f ? f() : -1 
-    },
-    __syscall1: function(n, a) {
-      debug('syscall(' + n + ', ' + a + ')');
-      f = syscalls[n]
-      return f ? f(a) : -1 
-    },
-    __syscall2: function(n, a, b) {
-      debug('syscall(' + n + ', ' + a + ')');
-      f = syscalls[n]
-      return f ? f(a, b) : -1
-    }, 
-    __syscall3: function(n, a, b, c) {
-      debug('syscall(' + n + ', ' + a + ', ' + b + ', ' + c + ')');
-      f = syscalls[n]
-      return f ? f(a, b, c) : -1
-    },
-    __syscall4: function(n, a, b, c, d) {
-      debug('syscall(' + n + ', ' + a + ', ' + b + ', ' + c + ', ' + d + ')');
-      f = syscalls[n]
-      return f ? f(a, b, c, d) : -1
-    },
-    __syscall5: function(n, a, b, c, d, e) {
-      debug('syscall(' + n + ', ' + a + ', ' + b + ', ' + c + ', ' + d + ', '
-                  + e + ')');
-      f = syscalls[n]
-      return f ? f(a, b, c, d, e) : -1
-    },
-    __syscall6: function(n, a, b, c, d, e, f) {
-      debug('syscall(' + n + ', ' + a + ', ' + b + ', ' + c + ', ' + d + ', '
-                  + e + ', ' + f + ')');
-      f = syscalls[n]
-      return f ? f(a, b, c, d, e, f) : -1
-    },
-    __syscall_cp: NYI('__syscall_cp')
-};
-})();
+function route_syscall() {
+  n = arguments[0]
+  name = syscalls_names[n]
+  if (name) {
+    name = "SYS_" + name
+  }
+  else {
+    name = n
+  }
+  argv = [].slice.call(arguments, 1)
+  debug('syscall(' + name + ', ' + argv + ')')
+  f = syscalls[n]
+  return f ? f.apply(this, argv) : -1
+}
 
-for (var f in syscall_stubs) {
-  functions["env"][f] = syscall_stubs[f];
+for (var i in [0, 1, 2, 3, 4, 5, 6]) {
+  functions['env']['__syscall' + i] = route_syscall
 }
 
 module = new WebAssembly.Module(read('index.wasm', 'binary'));
