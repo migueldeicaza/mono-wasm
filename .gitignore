@@ -1,0 +1,7 @@
+build
+index.wast
+index.wasm
+index.bc
+index.s
+boot.bc
+stubs.bc
