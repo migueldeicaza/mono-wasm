@@ -169,19 +169,22 @@ syscalls[54] = function(fd, req, arg) {
   return 0
 }
 
+var out_buffer = '';
 syscalls_names[146] = 'write';
 syscalls[146] = function(fd, iovs, iov_count) {
   if (fd == 1 || fd == 2) {
-    var str = ''
     var all_lens = 0
     for (var i = 0; i < iov_count; i++) {
       var base = intFromHeap(iovs + (i * 8))
       var len = intFromHeap(iovs + 4 + (i * 8))
       debug("write fd: " + fd + ", base: " + base + ", len: " + len)
-      str += stringFromHeapAndLength(base, len)
+      out_buffer += stringFromHeapAndLength(base, len)
       all_lens += len
     }
-    print(str)
+    if (out_buffer.charAt(out_buffer.length - 1) == '\n') {
+      print(out_buffer.substr(0, out_buffer.length - 1))
+      out_buffer = ''
+    }
     return all_lens
   }
   error("can only write on stdout and stderr") 
