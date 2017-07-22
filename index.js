@@ -1,6 +1,8 @@
 // JavaScript WASM support for libc+mono. Inspired from WebAssembly/musl's
 // wasm.js file.
 
+Error.stackTraceLimit = Infinity; // print the entire callstack on errors
+
 var debug_logs = true;
 var functions = { env: {} };
 var module;
@@ -51,12 +53,12 @@ function debug(str) {
 }
 
 function error(str) {
-  print("!! " + str);
+  print("!! " + str + ": " + new Error().stack);
 }
 
 function TerminateWasmException(value) {
-  this.value = value;
   this.message = 'Terminating WebAssembly';
+  this.value = value;
   this.toString = function() { return this.message + ': ' + this.value; };
 }
 
@@ -64,13 +66,6 @@ function NotYetImplementedException(what) {
   this.message = 'Not yet implemented';
   this.what = what;
   this.toString = function() { return this.message + ': ' + this.what; };
-}
-
-function NYI(what) {
-  return function() { 
-    error("Not Yet Implemented: " + new Error().stack);
-    throw new NotYetImplementedException(what);
-  };
 }
 
 // Temporary list of symbols imported by the WASM module that are not
@@ -131,7 +126,10 @@ var missing_functions = ['_Exit', '__addtf3', '__addtf3', '__block_all_sigs',
 
 for (var i in missing_functions) {
   f = missing_functions[i]
-  functions['env'][f] = NYI(f);
+  functions['env'][f] = function() { 
+    error("Not Yet Implemented: " + f)
+    throw new NotYetImplementedException(f);
+  };
 }
 
 var missing_globals = ['__c_dot_utf8_locale', '__c_locale', '__stderrp',
@@ -203,18 +201,18 @@ syscalls[224] = function() {
   return process_tid
 }
 
-syscalls_names[238] = 'kill'
+syscalls_names[238] = 'tkill'
 syscalls[238] = function(tid, signal) {
   if (tid == process_tid) {
     if (signal == 6) {
       // SIGABRT
-      error("received SIGABRT: " + new Error().stack)
+      error("received SIGABRT")
       throw new TerminateWasmException('SIGABRT');
     }
-    error('kill() with unsupported signal: ' + signal)
+    error('tkill() with unsupported signal: ' + signal)
   }
   else {
-    error('kill() with wrong tid: ' + tid)
+    error('tkill() with wrong tid: ' + tid)
   }
   return -1
 }
@@ -222,7 +220,7 @@ syscalls[238] = function(tid, signal) {
 syscalls_names[252] = 'exit';
 syscalls[252] = function(code) {
   debug("exit(" + code + "): " + new Error().stack)
-  throw new TerminateWasmException('SYS_exit_group(' + code + ')');
+  throw new TerminateWasmException('exit(' + code + ')');
 }
 
 syscalls_names[265] = 'clock_gettime';
@@ -236,7 +234,7 @@ syscalls[265] = function(clock_id, timespec) {
     intToHeap(timespec + 4, usec)
     return 0;
   }
-  debug("invalid clock_id " + clock_id)
+  error("invalid clock_id: " + clock_id)
   return -1
 }
 
@@ -250,7 +248,8 @@ function route_syscall() {
     name = n
   }
   argv = [].slice.call(arguments, 1)
-  debug('syscall(' + name + (argv.length > 0 ? ', ' + argv.join(', ') : '') + ')')
+  debug('syscall(' + name + (argv.length > 0 ? ', ' + argv.join(', ') : '')
+              + ')')
   f = syscalls[n]
   return f ? f.apply(this, argv) : -1
 }
