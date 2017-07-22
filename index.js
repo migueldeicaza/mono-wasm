@@ -7,43 +7,41 @@ var debug_logs = true;
 var functions = { env: {} };
 var module;
 var instance;
-var heap_size_bytes;
 var heap;
-var heap_uint8;
+var heap_size;
 
-function charFromHeap(ptr) { 
-  return String.fromCharCode(heap_uint8[ptr]);
-}
-
-function stringFromHeap(ptr) {
-  var str = '';
-  for (var i = ptr; heap_uint8[i] != 0; ++i)
-    str += charFromHeap(i);
-  return str;
-}
-
-function stringFromHeapAndLength(ptr, len) {
-  var str = '';
-  for (var i = 0; i < len; ++i)
-    str += charFromHeap(ptr + i);
-  return str;
-}
-
-function intFromHeap(ptr) {
+function heap_get_int(ptr) {
   var d = 0;
-  d += (heap_uint8[ptr + 0] << 0)
-  d += (heap_uint8[ptr + 1] << 8)
-  d += (heap_uint8[ptr + 2] << 16)
-  d += (heap_uint8[ptr + 3] << 32)
-  return d
+  d += (heap[ptr + 0] << 0);
+  d += (heap[ptr + 1] << 8);
+  d += (heap[ptr + 2] << 16);
+  d += (heap[ptr + 3] << 32);
+  return d;
 }
 
-function intToHeap(ptr, d) {
-  heap_uint8[ptr + 0] = ((d & 0x000000ff) >> 0)
-  heap_uint8[ptr + 1] = ((d & 0x0000ff00) >> 8)
-  heap_uint8[ptr + 2] = ((d & 0x00ff0000) >> 16)
-  heap_uint8[ptr + 3] = ((d & 0xff000000) >> 32)
-  return d
+function heap_set_int(ptr, d) {
+  heap[ptr + 0] = ((d & 0x000000ff) >> 0);
+  heap[ptr + 1] = ((d & 0x0000ff00) >> 8);
+  heap[ptr + 2] = ((d & 0x00ff0000) >> 16);
+  heap[ptr + 3] = ((d & 0xff000000) >> 32);
+  return d;
+}
+
+function heap_get_string(ptr, len=-1) {
+  var str = '';
+  var i = 0;
+  while (true) {
+    var c = heap[ptr + i];
+    if (c == 0) {
+      break;
+    }
+    if (i == len) {
+      break;
+    }
+    str += String.fromCharCode(c);
+    i++;
+  }
+  return str;
 }
 
 function debug(str) {
@@ -146,17 +144,17 @@ var syscalls_names = {}
 syscalls_names[45] = 'brk';
 syscalls[45] = function(inc) {
   if (inc == 0) {
-    return heap_size_bytes;
+    return heap_size;
   }
-  if (inc > heap_size_bytes) {
-    var delta = inc - heap_size_bytes
+  if (inc > heap_size) {
+    var delta = inc - heap_size
     var new_pages_needed = Math.ceil(delta / 65536.0)
     var memory = instance.exports.memory
     var n = memory.grow(new_pages_needed);
     debug("grow heap +" + new_pages_needed + " pages from " + n
             + " pages, new heap " + memory.buffer.byteLength)
-    heap_uint8 = new Uint8Array(memory.buffer)
-    heap_size_bytes = memory.buffer.byteLength
+    heap = new Uint8Array(memory.buffer)
+    heap_size = memory.buffer.byteLength
   }
   return inc
 }
@@ -173,10 +171,10 @@ syscalls[146] = function(fd, iovs, iov_count) {
   if (fd == 1 || fd == 2) {
     var all_lens = 0
     for (var i = 0; i < iov_count; i++) {
-      var base = intFromHeap(iovs + (i * 8))
-      var len = intFromHeap(iovs + 4 + (i * 8))
+      var base = heap_get_int(iovs + (i * 8))
+      var len = heap_get_int(iovs + 4 + (i * 8))
       debug("write fd: " + fd + ", base: " + base + ", len: " + len)
-      out_buffer += stringFromHeapAndLength(base, len)
+      out_buffer += heap_get_string(base, len)
       all_lens += len
     }
     if (out_buffer.charAt(out_buffer.length - 1) == '\n') {
@@ -230,8 +228,8 @@ syscalls[265] = function(clock_id, timespec) {
     var sec = Math.floor(ms / 1000)
     var usec = (ms % 1000) * 1000
     debug("clock_gettime: msec: " + ms + " -> sec: " + sec + ", usec: " + usec)
-    intToHeap(timespec, sec)
-    intToHeap(timespec + 4, usec)
+    heap_set_int(timespec, sec)
+    heap_set_int(timespec + 4, usec)
     return 0;
   }
   error("invalid clock_id: " + clock_id)
@@ -261,10 +259,9 @@ for (var i in [0, 1, 2, 3, 4, 5, 6]) {
 module = new WebAssembly.Module(read('index.wasm', 'binary'));
 instance = new WebAssembly.Instance(module, functions);
 
-heap = instance.exports.memory.buffer;
-heap_uint8 = new Uint8Array(heap);
-heap_size_bytes = heap.byteLength;
-debug("module heap: " + heap_size_bytes)
+heap = new Uint8Array(instance.exports.memory.buffer);
+heap_size = instance.exports.memory.buffer.byteLength;
+debug("module heap: " + heap_size)
 
 debug("running main()")
 var ret = instance.exports.main();
