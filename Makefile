@@ -34,8 +34,6 @@ build/libc/%.bc: $(MUSL_PATH)/src/%.c
 	@/bin/mkdir -p $(dir $@)
 	$(LLVM_PATH)/bin/clang $(MUSL_CFLAGS) $< -c -emit-llvm -o $@
 
-wasm: build/libmini.wasm build/libmetadata.wasm build/libutils.wasm build/libsgen.wasm build/libeglib.wasm
-
 build/%.wasm:   build/%.bc
 	$(LLVM_PATH)/bin/llc -asm-verbose=false -march=wasm32 -o build/tmp.s $<
 	/usr/bin/perl -p -i -e "s/\.comm/.lcomm/g" build/tmp.s
