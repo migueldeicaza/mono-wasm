@@ -34,12 +34,6 @@ build/libc/%.bc: $(MUSL_PATH)/src/%.c
 	@/bin/mkdir -p $(dir $@)
 	$(LLVM_PATH)/bin/clang $(MUSL_CFLAGS) $< -c -emit-llvm -o $@
 
-build/%.wasm:   build/%.bc
-	$(LLVM_PATH)/bin/llc -asm-verbose=false -march=wasm32 -o build/tmp.s $<
-	/usr/bin/perl -p -i -e "s/\.comm/.lcomm/g" build/tmp.s
-	$(BINARYEN_PATH)/bin/s2wasm --validate none build/tmp.s -o build/tmp.wast
-	$(BINARYEN_PATH)/bin/wasm-as --validate none build/tmp.wast -o $@
-
 build/mini/%.bc : $(MONO_PATH)/mono/mini/%.c
 	@/bin/mkdir -p build/mini
 	/usr/bin/clang -I$(MONO_PATH)/mono/mini $(MONO_CFLAGS) $< -c -emit-llvm -o $@
