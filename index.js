@@ -46,12 +46,12 @@ function intToHeap(ptr, d) {
 
 function debug(str) {
   if (debug_logs) {
-    print("> " + str);
+    print(">> " + str);
   }
 }
 
 function error(str) {
-  print("! " + str);
+  print("!! " + str);
 }
 
 function TerminateWasmException(value) {
@@ -250,7 +250,7 @@ function route_syscall() {
     name = n
   }
   argv = [].slice.call(arguments, 1)
-  debug('syscall(' + name + ', ' + argv + ')')
+  debug('syscall(' + name + (argv.length > 0 ? ', ' + argv.join(', ') : '') + ')')
   f = syscalls[n]
   return f ? f.apply(this, argv) : -1
 }
