@@ -191,6 +191,34 @@ syscalls[146] = function(fd, iovs, iov_count) {
   return -1
 }
 
+syscalls_names[175] = 'sigprocmask'
+syscalls[175] = function(action, mask, set, sig_n) {
+  // TODO
+  return 0
+}
+
+process_tid = 42 // Should fix this once we get multithreading
+syscalls_names[224] = 'gettid'
+syscalls[224] = function() {
+  return process_tid
+}
+
+syscalls_names[238] = 'kill'
+syscalls[238] = function(tid, signal) {
+  if (tid == process_tid) {
+    if (signal == 6) {
+      // SIGABRT
+      error("received SIGABRT: " + new Error().stack)
+      throw new TerminateWasmException('SIGABRT');
+    }
+    error('kill() with unsupported signal: ' + signal)
+  }
+  else {
+    error('kill() with wrong tid: ' + tid)
+  }
+  return -1
+}
+
 syscalls_names[252] = 'exit';
 syscalls[252] = function(code) {
   debug("exit(" + code + "): " + new Error().stack)
