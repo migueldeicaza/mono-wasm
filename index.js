@@ -78,7 +78,7 @@ for (var i in missing_functions) {
   })(f);
 }
 
-var do_nothing_functions = ['pthread_mutexattr_init', 'pthread_mutexattr_settype', 'pthread_mutex_init', 'pthread_mutexattr_destroy', 'pthread_mutex_lock', 'pthread_mutex_unlock', 'pthread_key_create']
+var do_nothing_functions = ['pthread_mutexattr_init', 'pthread_mutexattr_settype', 'pthread_mutex_init', 'pthread_mutexattr_destroy', 'pthread_mutex_lock', 'pthread_mutex_unlock', 'pthread_key_create', 'pthread_condattr_init', 'pthread_condattr_setclock', 'pthread_cond_init', 'pthread_condattr_destroy']
 
 for (var i in do_nothing_functions) {
   f = do_nothing_functions[i];
