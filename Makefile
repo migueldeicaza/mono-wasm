@@ -34,26 +34,23 @@ build/libc/%.bc: $(MUSL_PATH)/src/%.c
 	$(CLANG) $(MUSL_CFLAGS) $< -c -emit-llvm -o $@
 
 build/mini/%.bc : $(MONO_PATH)/mono/mini/%.c
-	@/bin/mkdir -p build/mini
+	@/bin/mkdir -p $(dir $@)
 	$(CLANG) -I$(MONO_PATH)/mono/mini $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
 build/metadata/%.bc : $(MONO_PATH)/mono/metadata/%.c
-	@/bin/mkdir -p build/metadata
-	$(CLANG) -I$(MONO_PATH)/mono/metadata $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	@/bin/mkdir -p $(dir $@)
 	$(CLANG) -I$(MONO_PATH)/mono/metadata $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
 build/utils/%.bc : $(MONO_PATH)/mono/utils/%.c
-	@/bin/mkdir -p build/utils
-	$(CLANG) -I$(MONO_PATH)/mono/utils $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	@/bin/mkdir -p $(dir $@)
 	$(CLANG) -I$(MONO_PATH)/mono/utils $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
 build/sgen/%.bc : $(MONO_PATH)/mono/sgen/%.c
-	@/bin/mkdir -p build/sgen
-	$(CLANG) -I$(MONO_PATH)/mono/sgen $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	@/bin/mkdir -p $(dir $@)
 	$(CLANG) -I$(MONO_PATH)/mono/sgen $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
 build/eglib/%.bc : $(MONO_PATH)/eglib/src/%.c
-	@/bin/mkdir -p build/eglib
+	@/bin/mkdir -p $(dir $@)
 	$(CLANG) $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
 index.bc:   boot.c build/libc.bc build/libmono.bc
