@@ -78,15 +78,37 @@ for (var i in missing_functions) {
   })(f);
 }
 
-var do_nothing_functions = ['pthread_mutexattr_init', 'pthread_mutexattr_settype', 'pthread_mutex_init', 'pthread_mutexattr_destroy', 'pthread_mutex_lock', 'pthread_mutex_unlock', 'pthread_key_create', 'pthread_condattr_init', 'pthread_condattr_setclock', 'pthread_cond_init', 'pthread_condattr_destroy']
+var do_nothing_functions = ['pthread_mutexattr_init', 'pthread_mutexattr_settype', 'pthread_mutex_init', 'pthread_mutexattr_destroy', 'pthread_mutex_lock', 'pthread_mutex_unlock', 'pthread_condattr_init', 'pthread_condattr_setclock', 'pthread_cond_init', 'pthread_condattr_destroy', 'pthread_sigmask', '_pthread_cleanup_push', '_pthread_cleanup_pop', 'pthread_self', 'sem_init', 'sem_wait', 'sem_post']
 
 for (var i in do_nothing_functions) {
   f = do_nothing_functions[i];
   functions['env'][f] = function() { }
 }
 
-var missing_globals = ['__c_dot_utf8_locale', '__c_locale', '__stderrp',
-  'errno', 'mach_task_self_']
+// A (way too) simple implementation for thread-local variables. Should be
+// removed once we enable the relevant code in the libc.
+var tls_variables = {}
+
+functions['env']['pthread_key_create'] = function(key_ptr, destructor) {
+  key = Object.keys(tls_variables).length;
+  tls_variables[key] = 0;
+  heap_set_int(key_ptr, key);
+  return 0;
+}
+
+functions['env']['pthread_getspecific'] = function(key) {
+  var value = tls_variables[key];
+  debug('pthread_getspecific(' + key + ') -> ' + value);
+  return value;
+}
+
+functions['env']['pthread_setspecific'] = function(key, value) {
+  debug('pthread_setspecific(' + key + ', ' + value + ')');
+  tls_variables[key] = value;
+  return 0;
+}
+
+var missing_globals = ['__c_locale', '__c_dot_utf8_locale']
 
 for (var i in missing_globals) {
   g = missing_globals[i];
