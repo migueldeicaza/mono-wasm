@@ -40,14 +40,17 @@ build/mini/%.bc : $(MONO_PATH)/mono/mini/%.c
 build/metadata/%.bc : $(MONO_PATH)/mono/metadata/%.c
 	@/bin/mkdir -p build/metadata
 	$(CLANG) -I$(MONO_PATH)/mono/metadata $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_PATH)/mono/metadata $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
 build/utils/%.bc : $(MONO_PATH)/mono/utils/%.c
 	@/bin/mkdir -p build/utils
 	$(CLANG) -I$(MONO_PATH)/mono/utils $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_PATH)/mono/utils $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
 build/sgen/%.bc : $(MONO_PATH)/mono/sgen/%.c
 	@/bin/mkdir -p build/sgen
 	$(CLANG) -I$(MONO_PATH)/mono/sgen $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_PATH)/mono/sgen $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
 build/eglib/%.bc : $(MONO_PATH)/eglib/src/%.c
 	@/bin/mkdir -p build/eglib
