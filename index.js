@@ -234,7 +234,11 @@ function route_syscall() {
   debug('syscall(' + name + (argv.length > 0 ? ', ' + argv.join(', ') : '')
               + ')')
   f = syscalls[n]
-  return f ? f.apply(this, argv) : -1
+  if (!f) {
+    debug('unimplemented syscall ' + n + ' called: ' + new Error().stack)
+    return -1
+  }
+  return f.apply(this, argv)
 }
 
 for (var i in [0, 1, 2, 3, 4, 5, 6]) {
