@@ -202,17 +202,28 @@ syscalls[252] = function(code) {
 
 syscalls_names[265] = 'clock_gettime';
 syscalls[265] = function(clock_id, timespec) {
-  if (clock_id == 0) {
+  // TODO should switch to something else with a higher resolution + support
+  // the different CLOCK_ ids.
+  if (timespec) {
     var ms = new Date().getTime()
     var sec = Math.floor(ms / 1000)
-    var usec = (ms % 1000) * 1000
-    debug("clock_gettime: msec: " + ms + " -> sec: " + sec + ", usec: " + usec)
-    heap_set_int(timespec, sec)
-    heap_set_int(timespec + 4, usec)
-    return 0;
+    var nsec = (ms % 1000) * 1000000
+    debug("clock_gettime: msec: " + ms + " -> sec: " + sec + ", nsec: "
+            + nsec)
+    heap_set_int(timespec, sec)        // tv_sec
+    heap_set_int(timespec + 4, nsec)   // tv_nsec
   }
-  error("invalid clock_id: " + clock_id)
-  return -1
+  return 0;
+}
+
+syscalls_names[266] = 'clock_getres';
+syscalls[266] = function(clock_id, timespec) {
+  if (timespec) {
+    // Our gettime JS implementation has a 1ms resolution.
+    heap_set_int(timespec, 0)           // tv_sec
+    heap_set_int(timespec + 4, 1000000) // tv_nsec
+  }
+  return 0
 }
 
 syscalls_names[340] = 'prlimit64'
