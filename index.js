@@ -120,6 +120,12 @@ syscalls[54] = function(fd, req, arg) {
   return 0
 }
 
+syscalls_names[76] = 'getrlimit'
+syscalls[76] = function(resource, rlim) {
+  // TODO
+  return 0
+}
+
 var out_buffer = '';
 syscalls_names[146] = 'write';
 syscalls[146] = function(fd, iovs, iov_count) {
@@ -189,6 +195,12 @@ syscalls[265] = function(clock_id, timespec) {
   }
   error("invalid clock_id: " + clock_id)
   return -1
+}
+
+syscalls_names[340] = 'prlimit64'
+syscalls[340] = function(pid, resource, new_rlim, old_rlim) {
+  // TODO
+  return 0
 }
 
 function route_syscall() {
