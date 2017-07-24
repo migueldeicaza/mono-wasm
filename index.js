@@ -96,6 +96,11 @@ for (var i in missing_globals) {
 var syscalls = {}
 var syscalls_names = {}
 
+syscalls_names[20] = 'getpid';
+syscalls[20] = function() {
+  return 42
+}
+
 syscalls_names[45] = 'brk';
 syscalls[45] = function(inc) {
   if (inc == 0) {
