@@ -148,13 +148,31 @@ syscalls[146] = function(fd, iovs, iov_count) {
   return -1
 }
 
+var sizeof_k_sigaction = 20
+var signals = {} // maps signal numbers to k_sigaction UInt8Array
+syscalls_names[174] = 'sigaction'
+syscalls[174] = function(sig, act, oact, mask_len) {
+  if (mask_len != 8) {
+    error('mask_len should be 8 (is ' + mask_len + ')')
+    mask_len = 8
+  }
+  sig_act = (signals[sig] || new Uint8Array(sizeof_k_sigaction))
+  if (oact != 0) {
+    heap.set(sig_act, oact)    
+  }
+  if (act != 0) {
+    sig_act.set(heap.slice(act, sizeof_k_sigaction)) 
+  }
+  return 0
+}
+
 syscalls_names[175] = 'sigprocmask'
 syscalls[175] = function(action, mask, set, sig_n) {
   // TODO
   return 0
 }
 
-process_tid = 42 // Should fix this once we get multithreading
+var process_tid = 42 // Should fix this once we get multithreading
 syscalls_names[224] = 'gettid'
 syscalls[224] = function() {
   return process_tid
