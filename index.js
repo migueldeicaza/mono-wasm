@@ -101,18 +101,21 @@ syscalls[20] = function() {
   return 42
 }
 
+var brk_current = 0
 syscalls_names[45] = 'brk';
 syscalls[45] = function(inc) {
   if (inc == 0) {
-    return heap_size;
+    brk_current = heap_size;
+    return brk_current;
   }
-  if (inc > heap_size) {
-    var delta = inc - heap_size
+  if (brk_current + inc > heap_size) {
+    var delta = inc - (heap_size - brk_current)
+    brk_current += inc
     var new_pages_needed = Math.ceil(delta / 65536.0)
     var memory = instance.exports.memory
     var n = memory.grow(new_pages_needed);
     debug("grow heap +" + new_pages_needed + " pages from " + n
-            + " pages, new heap " + memory.buffer.byteLength)
+            + " pages, heap " + heap_size + " -> " + memory.buffer.byteLength)
     heap = new Uint8Array(memory.buffer)
     heap_size = memory.buffer.byteLength
   }
