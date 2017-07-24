@@ -66,75 +66,30 @@ function NotYetImplementedException(what) {
   this.toString = function() { return this.message + ': ' + this.what; };
 }
 
-// Temporary list of symbols imported by the WASM module that are not
-// properly implemented yet.
-var missing_functions = ['_Exit', '__addtf3', '__addtf3', '__block_all_sigs',
-'__block_app_sigs', '__clone', '__divsc3', '__divtf3', '__divtf3',
-'__dl_invalid_handle', '__dl_seterr', '__eqtf2', '__extenddftf2',
-'__extendsftf2', '__fdopen', '__fixsfti', '__fixtfdi', '__fixtfdi',
-'__fixtfsi', '__fixtfsi', '__fixunstfdi', '__fixunstfsi', '__floatditf',
-'__floatscan', '__floatsitf', '__floatsitf', '__floatunditf', '__floatunsitf',
-'__getf2', '__gttf2', '__lctrans', '__lctrans_cur', '__libc_sigaction',
-'__lock', '__lockfile', '__lttf2', '__lttf2', '__madvise', '__mmap',
-'__mremap', '__multf3', '__multf3', '__multi3', '__munmap', '__netf2',
-'__netf2', '__nl_langinfo', '__nl_langinfo_l', '__randname',
-'__rem_pio2_large', '__restore_sigs', '__set_thread_area', '__stdio_write',
-'__stdout_write', '__subtf3', '__synccall', '__syscall_cp', '__trunctfdf2',
-'__trunctfsf2', '__unlock', '__unlockfile', '__unordtf2', '__wait',
-'_pthread_cleanup_pop', '_pthread_cleanup_push', 'abort', 'backtrace',
-'backtrace_symbols', 'btowc', 'cabs', 'clock_get_time', 'clock_sleep',
-'closelog', 'execv', 'execve', 'execvp', 'fcntl', 'fdopen', 'feclearexcept',
-'fegetround', 'feraiseexcept', 'fesetround', 'fetestexcept', 'fork', 'fprintf',
-'freeaddrinfo', 'getaddrinfo', 'getgrgid_r', 'getgrnam_r', 'getloadavg',
-'getnameinfo', 'getpriority', 'getprotobyname', 'getpwnam_r', 'getpwuid_r',
-'getrusage', 'gettimeofday', 'host_get_clock_service', 'host_page_size',
-'host_statistics', 'if_nametoindex', 'ioctl', 'iswctype', 'iswspace', 'kevent',
-'localtime_r', 'longjmp', 'mach_absolute_time', 'mach_host_self',
-'mach_port_deallocate', 'mach_timebase_info', 'mbrtowc', 'mbsinit',
-'mbsnrtowcs', 'mbstowcs', 'mbtowc', 'mincore', 'mini_emit_memcpy',
-'mini_gc_set_slot_type_from_cfa', 'mini_gc_set_slot_type_from_fp', 'mkdir',
-'mkstemp', 'mmap', 'mono_alloc_freg', 'mono_alloc_ireg',
-'mono_allocate_stack_slots', 'mono_arch_instrument_epilog',
-'mono_bblock_insert_before_ins', 'mono_call_inst_add_outarg_reg',
-'mono_cfg_set_exception_invalid_program', 'mono_compile_create_var',
-'mono_decompose_op_imm', 'mono_emit_unwind_op', 'mono_file_map',
-'mono_file_unmap', 'mono_file_unmap_fileio', 'mono_get_got_var',
-'mono_mark_vreg_as_mp', 'mono_mark_vreg_as_ref', 'mono_peephole_ins',
-'mono_print_ins', 'mono_realloc_native_code', 'mono_varlist_sort', 'msync',
-'munmap', 'nanosleep', 'nl_langinfo', 'open', 'openlog', 'posix_spawn',
-'posix_spawn_file_actions_adddup2', 'posix_spawn_file_actions_destroy',
-'posix_spawn_file_actions_init', 'proc_pidpath', 'pthread_attr_init',
-'pthread_attr_setdetachstate', 'pthread_barrier_init', 'pthread_barrier_wait',
-'pthread_cond_timedwait_relative_np', 'pthread_create', 'pthread_equal',
-'pthread_get_stackaddr_np', 'pthread_get_stacksize_np', 'pthread_getname_np',
-'pthread_getschedparam', 'pthread_getspecific', 'pthread_key_create',
-'pthread_key_delete', 'pthread_main_np', 'pthread_mutex_init',
-'pthread_mutex_lock', 'pthread_mutex_unlock', 'pthread_once', 'pthread_self',
-'pthread_setcancelstate', 'pthread_setschedparam', 'pthread_setspecific',
-'raise', 'sched_get_priority_max', 'sched_get_priority_min',
-'semaphore_create', 'semaphore_destroy', 'semaphore_signal',
-'semaphore_timedwait', 'semaphore_wait', 'setitimer', 'setjmp', 'setlocale',
-'setpriority', 'sigaction', 'signal', 'sigprocmask', 'snprintf', 'socket',
-'sprintf', 'stat', 'statfs', 'statvfs', 'strdup', 'strftime', 'sysconf',
-'sysctl', 'syslog', 'task_for_pid', 'task_info', 'task_threads', 'tcflush',
-'tcgetattr', 'tcsetattr', 'thread_get_state', 'thread_info',
-'thread_set_state', 'time', 'towlower', 'towupper', 'uname', 'utime',
-'utimensat', 'vfprintf', 'vfscanf', 'vm_deallocate', 'vsnprintf', 'waitpid',
-'wcsrtombs', 'wctomb', 'wctype']
+load('missing.js')
 
 for (var i in missing_functions) {
-  f = missing_functions[i]
-  functions['env'][f] = function() { 
-    error("Not Yet Implemented: " + f)
-    throw new NotYetImplementedException(f);
-  };
+  f = missing_functions[i];
+  functions['env'][f] = (function(f) { 
+    return function() {
+      error("Not Yet Implemented: " + f)
+      throw new NotYetImplementedException(f);
+    }
+  })(f);
+}
+
+var do_nothing_functions = ['pthread_mutexattr_init', 'pthread_mutexattr_settype', 'pthread_mutex_init', 'pthread_mutexattr_destroy', 'pthread_mutex_lock', 'pthread_mutex_unlock', 'pthread_key_create']
+
+for (var i in do_nothing_functions) {
+  f = do_nothing_functions[i];
+  functions['env'][f] = function() { }
 }
 
 var missing_globals = ['__c_dot_utf8_locale', '__c_locale', '__stderrp',
   'errno', 'mach_task_self_']
 
 for (var i in missing_globals) {
-  g = missing_globals[i]
+  g = missing_globals[i];
   functions['env'][g] = 0;
 }
 

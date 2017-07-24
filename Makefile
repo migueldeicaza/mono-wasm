@@ -65,7 +65,10 @@ index.wasm:     index.s
 	$(BINARYEN_PATH)/bin/s2wasm --validate wasm --allocate-stack 1000000 index.s -o index.wast
 	$(BINARYEN_PATH)/bin/wasm-as --validate wasm -g index.wast -o index.wasm
 
-run:    index.wasm index.js
+missing.js: index.wast
+	(echo "var missing_functions = ["; grep "(import \"env\"" index.wast | grep -v global | awk '{ print $$3 }' | paste -s -d , -; echo "]") >& missing.js
+
+run:    index.wasm missing.js index.js
 	$(D8_PATH) --expose-wasm index.js
 
 clean:
