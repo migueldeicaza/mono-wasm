@@ -190,7 +190,9 @@ TODO (now):
 
 TODO (later):
 
-* do a C# IR linker pass to reduce the size of the assemblies (mscorlib is too big)
+* do a C# IR linker pass to reduce the size of the assemblies (mscorlib is currently too big)
 * work on patches for mono based on the changes made in the fork
+* merge the WebAssembly upstream code into the mono/llvm fork so that the compiler can target wasm32
 * write a simple tool that does the IR -> wasm generation (instead of calling llc + the binaryen tools) so that we can better control linking optimizations (ex. LTO)
 * investigate threads, sockets, file system, debugger, stack unwinding...
+* better heap management (madvise), currently uses too much memory 
