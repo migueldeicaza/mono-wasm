@@ -1,14 +1,15 @@
-MONO_PATH = ../mono
-MUSL_PATH = ../musl
+MONO_RUNTIME_PATH = ../mono-runtime
+MONO_COMPILER_PATH = ../mono-compiler
+LIBC_PATH = ../libc
 LLVM_PATH = ../llvm-build
 BINARYEN_PATH = ../binaryen
-D8_PATH = ../wasm-install/bin/d8
+D8_PATH = ../../wasm-install/bin/d8
 
 CLANG = $(LLVM_PATH)/bin/clang
 
-MUSL_CFLAGS = -fno-stack-protector -nostdinc -I$(MUSL_PATH)/include -I$(MUSL_PATH)/src/internal -I$(MUSL_PATH)/arch/wasm32 -target wasm32 -Wno-shift-op-parentheses -Wno-incompatible-library-redeclaration -Wno-bitwise-op-parentheses
+LIBC_CFLAGS = -fno-stack-protector -nostdinc -I$(LIBC_PATH)/include -I$(LIBC_PATH)/src/internal -I$(LIBC_PATH)/arch/wasm32 -target wasm32 -Wno-shift-op-parentheses -Wno-incompatible-library-redeclaration -Wno-bitwise-op-parentheses
 
-MONO_CFLAGS = $(MUSL_CFLAGS) -I$(MONO_PATH) -I$(MONO_PATH)/mono -I$(MONO_PATH)/eglib/src -DHAVE_CONFIG_H -D_THREAD_SAFE -DUSE_MMAP -DUSE_MUNMAP -std=gnu99 -fwrapv -DMONO_DLL_EXPORT -Wno-unused-value -Wno-tautological-compare -Wno-bitwise-op-parentheses
+MONO_CFLAGS = $(LIBC_CFLAGS) -I$(MONO_RUNTIME_PATH) -I$(MONO_RUNTIME_PATH)/mono -I$(MONO_RUNTIME_PATH)/eglib/src -DHAVE_CONFIG_H -D_THREAD_SAFE -DUSE_MMAP -DUSE_MUNMAP -std=gnu99 -fwrapv -DMONO_DLL_EXPORT -Wno-unused-value -Wno-tautological-compare -Wno-bitwise-op-parentheses
 
 all: run
 
@@ -24,34 +25,43 @@ build/libeglib.bc: $(patsubst %, build/eglib/%.bc, garray goutput gbytearray gpa
 
 build/libmono.bc: build/libmini.bc build/libmetadata.bc build/libutils.bc build/libsgen.bc build/libeglib.bc
 
-build/libc.bc: $(patsubst %.c, build/libc/%.bc, $(shell (cd $(MUSL_PATH)/src && ls {ctype,env,errno,exit,internal,ldso,malloc,math,prng,signal,stdio,string,stdlib,time,unistd}/*.c | grep -Ev "(pread|pwrite|sigaltstack|strtok_r)")) fcntl/open.c thread/__lock.c misc/getrlimit.c mman/madvise.c stat/stat.c stat/fstat.c)
+build/libc.bc: $(patsubst %.c, build/libc/%.bc, $(shell (cd $(LIBC_PATH)/src && ls {ctype,env,errno,exit,internal,ldso,malloc,math,prng,signal,stdio,string,stdlib,time,unistd}/*.c | grep -Ev "(pread|pwrite|sigaltstack|strtok_r)")) fcntl/open.c thread/__lock.c misc/getrlimit.c mman/madvise.c stat/stat.c stat/fstat.c)
 
 build/libmini.bc build/libmetadata.bc build/libeglib.bc build/libsgen.bc build/libutils.bc build/libmono.bc build/libc.bc:
 	$(LLVM_PATH)/bin/llvm-link $^ -o $@
 
-build/libc/%.bc: $(MUSL_PATH)/src/%.c
+build/libc/%.bc: $(LIBC_PATH)/src/%.c
 	@/bin/mkdir -p $(dir $@)
-	$(CLANG) $(MUSL_CFLAGS) $< -c -emit-llvm -o $@
+	$(CLANG) $(LIBC_CFLAGS) $< -c -emit-llvm -o $@
 
-build/mini/%.bc : $(MONO_PATH)/mono/mini/%.c
+build/mini/%.bc : $(MONO_RUNTIME_PATH)/mono/mini/%.c
 	@/bin/mkdir -p $(dir $@)
-	$(CLANG) -I$(MONO_PATH)/mono/mini $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_RUNTIME_PATH)/mono/mini $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
-build/metadata/%.bc : $(MONO_PATH)/mono/metadata/%.c
+build/metadata/%.bc : $(MONO_RUNTIME_PATH)/mono/metadata/%.c
 	@/bin/mkdir -p $(dir $@)
-	$(CLANG) -I$(MONO_PATH)/mono/metadata $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_RUNTIME_PATH)/mono/metadata $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
-build/utils/%.bc : $(MONO_PATH)/mono/utils/%.c
+build/utils/%.bc : $(MONO_RUNTIME_PATH)/mono/utils/%.c
 	@/bin/mkdir -p $(dir $@)
-	$(CLANG) -I$(MONO_PATH)/mono/utils $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_RUNTIME_PATH)/mono/utils $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
-build/sgen/%.bc : $(MONO_PATH)/mono/sgen/%.c
+build/sgen/%.bc : $(MONO_RUNTIME_PATH)/mono/sgen/%.c
 	@/bin/mkdir -p $(dir $@)
-	$(CLANG) -I$(MONO_PATH)/mono/sgen $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
+	$(CLANG) -I$(MONO_RUNTIME_PATH)/mono/sgen $(MONO_CFLAGS) -DHAVE_SGEN_GC $< -c -emit-llvm -o $@
 
-build/eglib/%.bc : $(MONO_PATH)/eglib/src/%.c
+build/eglib/%.bc : $(MONO_RUNTIME_PATH)/eglib/src/%.c
 	@/bin/mkdir -p $(dir $@)
 	$(CLANG) $(MONO_CFLAGS) $< -c -emit-llvm -o $@
+
+hello.dll:       hello.cs
+	$(MONO_COMPILER)/runtime/_tmpinst/bin/mcs hello.cs -out:hello.dll
+
+mscorlib.dll:
+	cp $(MONO_COMPILER)/mcs/class/lib/basic/mscorlib.dll .
+
+%.bc : %.dll mscorlib.dll
+	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
 
 index.bc:   boot.c build/libc.bc build/libmono.bc hello.bc mscorlib.bc
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o boot.bc
@@ -72,4 +82,4 @@ run:    index.wasm missing.js index.js
 	$(D8_PATH) --expose-wasm index.js
 
 clean:
-	/bin/rm -rf build
+	/bin/rm -rf build missing.js index.wasm index.wast index.s index.bc hello.bc hello.dll mscorlib.bc mscorlib.dll boot.bc
