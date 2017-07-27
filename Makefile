@@ -53,9 +53,9 @@ build/eglib/%.bc : $(MONO_PATH)/eglib/src/%.c
 	@/bin/mkdir -p $(dir $@)
 	$(CLANG) $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
-index.bc:   boot.c build/libc.bc build/libmono.bc
+index.bc:   boot.c build/libc.bc build/libmono.bc hello.bc mscorlib.bc
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o boot.bc
-	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc boot.bc -o index.bc
+	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc boot.bc hello.bc mscorlib.bc -o index.bc
 
 index.s:        index.bc
 	$(LLVM_PATH)/bin/llc -asm-verbose=false -march=wasm32 -o index.s index.bc
