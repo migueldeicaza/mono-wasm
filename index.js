@@ -19,11 +19,36 @@ function heap_get_int(ptr) {
   return d;
 }
 
+function heap_get_long(ptr) {
+  var d = 0;
+  d += (heap[ptr + 0] << 0);
+  d += (heap[ptr + 1] << 8);
+  d += (heap[ptr + 2] << 16);
+  d += (heap[ptr + 3] << 24);
+  d += (heap[ptr + 4] << 32);
+  d += (heap[ptr + 5] << 40);
+  d += (heap[ptr + 6] << 48);
+  d += (heap[ptr + 7] << 56);
+  return d;
+}
+
 function heap_set_int(ptr, d) {
   heap[ptr + 0] = ((d & 0x000000ff) >> 0);
   heap[ptr + 1] = ((d & 0x0000ff00) >> 8);
   heap[ptr + 2] = ((d & 0x00ff0000) >> 16);
   heap[ptr + 3] = ((d & 0xff000000) >> 24);
+  return d;
+}
+
+function heap_set_long(ptr, d) {
+  heap[ptr + 0] = ((d & 0x00000000000000ff) >> 0);
+  heap[ptr + 1] = ((d & 0x000000000000ff00) >> 8);
+  heap[ptr + 2] = ((d & 0x0000000000ff0000) >> 16);
+  heap[ptr + 3] = ((d & 0x00000000ff000000) >> 24);
+  heap[ptr + 4] = ((d & 0x000000ff00000000) >> 32);
+  heap[ptr + 5] = ((d & 0x0000ff0000000000) >> 40);
+  heap[ptr + 6] = ((d & 0x00ff000000000000) >> 48);
+  heap[ptr + 7] = ((d & 0xff00000000000000) >> 56);
   return d;
 }
 
@@ -42,6 +67,13 @@ function heap_get_string(ptr, len=-1) {
     i++;
   }
   return str;
+}
+
+function heap_set_string(ptr, str) {
+  for (var i = 0; i < str.length; i++) {
+    heap[ptr + i] = str.charCodeAt(i);
+  }
+  heap[ptr + str.length] = 0
 }
 
 function debug(str) {
