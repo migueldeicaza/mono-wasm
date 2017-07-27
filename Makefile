@@ -62,7 +62,7 @@ index.s:        index.bc
 	/usr/bin/perl -p -i -e "s/\.comm/.lcomm/g" index.s
 
 index.wasm:     index.s
-	$(BINARYEN_PATH)/bin/s2wasm --validate wasm --allocate-stack 1000000 index.s -o index.wast
+	$(BINARYEN_PATH)/bin/s2wasm --validate wasm --allocate-stack 20000000 index.s -o index.wast
 	$(BINARYEN_PATH)/bin/wasm-as --validate wasm -g index.wast -o index.wasm
 
 missing.js: index.wast
