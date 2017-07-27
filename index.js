@@ -414,6 +414,11 @@ syscalls[340] = function(pid, resource, new_rlim, old_rlim) {
   return 0
 }
 
+syscalls_names[375] = 'membarrier'
+syscalls[375] = function() {
+  return 0
+}
+
 function route_syscall() {
   n = arguments[0]
   name = syscalls_names[n]
