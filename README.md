@@ -51,9 +51,9 @@ $ cd ~/src/mono-wasm
 $ git clone git@github.com:lrz/mono-wasm.git build
 ```
 
-### LLVM+clang with wasm32 backend
+### LLVM+clang with WebAssembly target
 
-We need a copy of the LLVM tooling (clang included) with the experimental WebAssembly backend enabled.
+We need a copy of the LLVM tooling (clang included) with the experimental WebAssembly target enabled.
 
 ```
 $ cd ~/src/mono-wasm
@@ -190,6 +190,7 @@ TODO (now):
 
 TODO (later):
 
+* do a C# IR linker pass to reduce the size of the assemblies (mscorlib is too big)
 * work on patches for mono based on the changes made in the fork
 * write a simple tool that does the IR -> wasm generation (instead of calling llc + the binaryen tools) so that we can better control linking optimizations (ex. LTO)
 * investigate threads, sockets, file system, debugger, stack unwinding...
