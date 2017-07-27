@@ -15,7 +15,7 @@ function heap_get_int(ptr) {
   d += (heap[ptr + 0] << 0);
   d += (heap[ptr + 1] << 8);
   d += (heap[ptr + 2] << 16);
-  d += (heap[ptr + 3] << 32);
+  d += (heap[ptr + 3] << 24);
   return d;
 }
 
@@ -23,7 +23,7 @@ function heap_set_int(ptr, d) {
   heap[ptr + 0] = ((d & 0x000000ff) >> 0);
   heap[ptr + 1] = ((d & 0x0000ff00) >> 8);
   heap[ptr + 2] = ((d & 0x00ff0000) >> 16);
-  heap[ptr + 3] = ((d & 0xff000000) >> 32);
+  heap[ptr + 3] = ((d & 0xff000000) >> 24);
   return d;
 }
 
