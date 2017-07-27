@@ -6,6 +6,41 @@ The process does not use Emscripten but instead uses the experimental WebAssembl
 
 This is clearly a work in progress. Feel free to ping me if you have questions or feedback: laurent.sansonetti@microsoft.com
 
+## How does it work?
+
+An ASCII graph is worth a thousand words:
+
+```
++---------------+   +---------------+   +---------------+
+| Mono runtime  |   |   C library   |   | C# assemblies |
++-------+-------+   +-------+-------+   +-------+-------+
+        |                   |                   |
+        v                   v                   v
++-----------------------------------+   +---------------+
+|        clang  target=wasm32       |   | Mono compiler |
++-----------------+-----------------+   +-------+-------+
+                  |                             |
+                  v                             v
++-------------------------------------------------------+
+|                       LLVM bitcode                    |
++----------------------------+--------------------------+
+                             | 
+                             v
++-------------------------------------------------------+
+|                     llc march=wasm32                  |
++----------------------------+--------------------------+
+                             |
+                             v
++-------------------------------------------------------+
+|                     s2wasm + wasm-as                  |
++----------------------------+--------------------------+
+                             |
+                             v
++-------------------------------------------------------+
+|                        index.wasm                     |
++-------------------------------------------------------+
+```
+
 ## Build instructions
 
 We will assume that you want to build everything in the ~/src/mono-wasm directory.
