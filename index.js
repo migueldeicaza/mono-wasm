@@ -115,8 +115,40 @@ for (var i in missing_globals) {
   functions['env'][g] = 0;
 }
 
+var fds = {}
+fds[0] = undefined
+fds[1] = undefined
+fds[2] = undefined
+
+var files = ['/mscorlib.dll', '/hello.exe']
+
 var syscalls = {}
 var syscalls_names = {}
+
+syscalls_names[3] = 'read';
+syscalls[3] = function(fd, buf, len) {
+  var obj = fds[fd]
+  if (obj) {
+    debug('read(' + fd + ') -> ' + len) 
+    offset = obj['offset']
+    buffer = obj['content']
+    heap.set(buffer.subarray(offset, offset + len), buf)   
+    return len
+  }
+  error('read() called with invalid fd ' + fd)
+  return -1
+}
+
+syscalls_names[6] = 'close';
+syscalls[6] = function(fd) {
+  var obj = fds[fd]
+  if (obj) {
+    fds[fd] = undefined
+    return 0
+  }
+  error('close() called with invalid fd ' + fd)
+  return -1
+}
 
 syscalls_names[20] = 'getpid';
 syscalls[20] = function() {
@@ -154,6 +186,13 @@ syscalls_names[76] = 'getrlimit'
 syscalls[76] = function(resource, rlim) {
   // TODO
   return 0
+}
+
+syscalls_names[85] = 'readlink'
+syscalls[85] = function(path, buf, buflen) {
+  // TODO
+  debug('readlink("' + heap_get_string(path) + '")')
+  return -1
 }
 
 var out_buffer = '';
@@ -196,10 +235,68 @@ syscalls[174] = function(sig, act, oact, mask_len) {
   return 0
 }
 
+syscalls_names[106] = 'stat'
+syscalls[106] = function(path, s) {
+  var path_str = heap_get_string(path)
+  debug('stat("' + path_str + '")')
+  if (path_str == "/") {
+    heap_set_int(s + 16, 0040000)   // st_mode -> S_IFDIR
+    return 0
+  }
+  return -1
+}
+
+syscalls_names[108] = 'fstat'
+syscalls[108] = function(fd, s) {
+  var obj = fds[fd]
+  if (obj) {
+    var st_size = obj['content'].length
+    debug('fstat(' + fd + ') -> { st_size: ' + st_size + ' }')
+    heap_set_int(s + 40, st_size) // st_size
+    return 0
+  }
+  error('fstat() called with invalid fd ' + fd)
+  return -1
+}
+
+syscalls_names[140] = 'lseek'
+syscalls[140] = function(fd, unused, offset, result, whence) {
+  var obj = fds[fd]
+  if (obj) {
+    if (whence == 0) {
+      // SEEK_SET
+      obj['offset'] = offset
+    }
+    else if (whence == 1) {
+      // SEEK_CUR
+      offset = obj['offset']
+    }
+    else {
+      error('lseek() called with invalid whence ' + whence)
+      return -1
+    }
+    debug('lseek(' + fd + ', ...) -> ' + offset)
+    heap_set_long(result, offset)
+    return 0
+  }
+  error('lseek() called with invalid fd ' + fd)
+  return -1
+}
+
 syscalls_names[175] = 'sigprocmask'
 syscalls[175] = function(action, mask, set, sig_n) {
   // TODO
   return 0
+}
+
+syscalls_names[183] = 'getcwd'
+syscalls[183] = function(buf, buflen) {
+  if (buflen > 1) {
+    heap_set_string(buf, "/")
+    return 0
+  }
+  error('getcwd() called with buflen ' + buflen)
+  return -1
 }
 
 var process_tid = 42 // Should fix this once we get multithreading
@@ -256,6 +353,29 @@ syscalls[266] = function(clock_id, timespec) {
   return 0
 }
 
+syscalls_names[295] = 'openat';
+syscalls[295] = function(at, filename, flags, mode) {
+  if (at == -100) {
+    // AT_FDCWD
+    if (flags == 0100000) {
+      var filename_str = heap_get_string(filename)
+      var fd = -1
+      if (files.indexOf(filename_str) != -1) {
+        var obj = {};
+        obj['offset'] = 0;
+        obj['path'] = filename_str;
+        obj['content'] = new Uint8Array(readbuffer(filename_str.substr(1)))
+        fd = Object.keys(fds).length;
+        fds[fd] = obj;
+      }
+      debug('open("' + filename_str + '") -> ' + fd);
+      return fd
+    }
+  }
+  error('openat() called with at ' + at + ' and flags ' + flags)
+  return -1
+}
+
 syscalls_names[340] = 'prlimit64'
 syscalls[340] = function(pid, resource, new_rlim, old_rlim) {
   // TODO
@@ -285,6 +405,7 @@ function route_syscall() {
 for (var i in [0, 1, 2, 3, 4, 5, 6]) {
   functions['env']['__syscall' + i] = route_syscall
 }
+functions['env']['__syscall_cp'] = route_syscall
 
 module = new WebAssembly.Module(read('index.wasm', 'binary'));
 instance = new WebAssembly.Instance(module, functions);
