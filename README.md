@@ -122,7 +122,7 @@ empty.txt       wasm-ctor-eval  wasm-opt
 
 We need a build a copy of the Mono compiler that we will use to generate LLVM bitcode from assemblies. We are building this for 32-bit Intel (i386) because the Mono compiler assumes way too many things from the host environment when generating the bitcode, so we want to match the target architecture (which is also 32-bit).
 
-First, you need to build a copy of the Mono fork of LLVM.
+First, you need to build a copy of the Mono fork of LLVM. We are building it for both 32-bit and 64-bit Intel so that we can easily switch the Mono compiler back to 64-bit later, and we manually have to copy the headers to the build directory as the Mono build system doesn't support external LLVM builds.
 
 ```
 $ cd ~/src/mono-wasm
@@ -130,10 +130,11 @@ $ git clone git@github.com:mono/llvm.git llvm-mono
 $ mkdir llvm-mono-build
 $ cd llvm-mono-build
 $ cmake -G "Unix Makefiles" -DCMAKE_OSX_ARCHITECTURES="i386;x86_64" ../llvm-mono
+$ ditto ../llvm-mono/include include
 $ make
 ```
 
-Now, you can now build the compiler itself.
+Now, we can now build the Mono compiler itself.
 
 ```
 $ cd ~/src/mono-wasm
