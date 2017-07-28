@@ -54,7 +54,7 @@ $ git clone git@github.com:lrz/mono-wasm.git build
 
 ### LLVM+clang with WebAssembly target
 
-We need a copy of the LLVM tooling (clang included) with the experimental WebAssembly target enabled.
+We need a copy of the LLVM tooling (clang included) with the experimental WebAssembly target enabled. Make sure to build a Release build (as indicated below) otherwise the WASM codegen will be significantly slower.
 
 ```
 $ cd ~/src/mono-wasm
@@ -64,7 +64,7 @@ $ svn co http://llvm.org/svn/llvm-project/cfe/trunk clang
 $ cd ../..
 $ mkdir llvm-build
 $ cd llvm-build
-$ cmake -G "Unix Makefiles" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly ../llvm
+$ cmake -G "Unix Makefiles" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=Release ../llvm
 $ make
 ```
 
