@@ -55,13 +55,13 @@ build/eglib/%.bc : $(MONO_RUNTIME_PATH)/eglib/src/%.c
 	$(CLANG) $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
 hello.dll:       hello.cs
-	$(MONO_COMPILER)/runtime/_tmpinst/bin/mcs hello.cs -out:hello.dll
+	mcs hello.cs -out:hello.dll
 
 mscorlib.dll:
-	cp $(MONO_COMPILER)/mcs/class/lib/basic/mscorlib.dll .
+	cp $(MONO_COMPILER_PATH)/mcs/class/lib/basic/mscorlib.dll .
 
 %.bc : %.dll mscorlib.dll
-	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
+	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER_PATH)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
 
 index.bc:   boot.c build/libc.bc build/libmono.bc hello.bc mscorlib.bc
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o boot.bc

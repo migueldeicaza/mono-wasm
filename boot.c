@@ -22,7 +22,8 @@ main(int argc, char **argv)
     mono_jit_set_aot_mode(MONO_AOT_MODE_LLVMONLY);
     MonoDomain *domain = mono_jit_init_version("hello", "v4.0.30319");
 
-    MonoAssembly *assembly = mono_assembly_open("hello.css", NULL);
+    printf("Opening hello.dll\n");
+    MonoAssembly *assembly = mono_assembly_open("hello.dll", NULL);
     g_assert(assembly != NULL);
     mono_jit_exec(domain, assembly, argc, argv);
 

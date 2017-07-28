@@ -152,7 +152,7 @@ fds[0] = undefined
 fds[1] = undefined
 fds[2] = undefined
 
-var files = ['/mscorlib.dll', '/hello.exe']
+var files = ['mscorlib.dll', 'hello.dll']
 
 var syscalls = {}
 var syscalls_names = {}
@@ -392,11 +392,14 @@ syscalls[295] = function(at, filename, flags, mode) {
     if (flags == 0100000) {
       var filename_str = heap_get_string(filename)
       var fd = -1
+      if (filename_str.charAt(0) == '/') {
+          filename_str = filename_str.substr(1)
+      }
       if (files.indexOf(filename_str) != -1) {
         var obj = {};
         obj['offset'] = 0;
         obj['path'] = filename_str;
-        obj['content'] = new Uint8Array(readbuffer(filename_str.substr(1)))
+        obj['content'] = new Uint8Array(readbuffer(filename_str))
         fd = Object.keys(fds).length;
         fds[fd] = obj;
       }
