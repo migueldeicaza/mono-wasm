@@ -4,40 +4,41 @@ This project is a proof-of-concept aiming at building C# applications into WebAs
 
 The process does not use Emscripten but instead uses the experimental WebAssembly backend of LLVM, the LLVM linker and the binaryen tooling to generate the final .wasm code.
 
-This is clearly a work in progress. Feel free to ping me if you have questions or feedback: laurent.sansonetti@microsoft.com
+The final .wasm file is loaded from JavaScript (see `index.js`), which also exposes proper callbacks for system calls that the C library will be calling into. These syscalls are responsible for heap management, I/O, etc.
+
+This project is a work in progress. Feel free to ping me if you have questions or feedback: laurent.sansonetti@microsoft.com
 
 ## How does it work?
 
 An ASCII graph is worth a thousand words:
 
 ```
-+---------------+   +---------------+   +---------------+
-| Mono runtime  |   |   C library   |   | C# assemblies |
-+-------+-------+   +-------+-------+   +-------+-------+
-        |                   |                   |
-        v                   v                   v
-+-----------------------------------+   +---------------+
-|        clang  target=wasm32       |   | Mono compiler |
-+-----------------+-----------------+   +-------+-------+
-                  |                             |
-                  v                             v
++----------------+-------------+  +---------------------+
+|  Mono runtime  |  C library  |  |    C# assemblies    |
++----------------+-------------+  +----------+----------+
+           clang |                           | mono -aot
+  -target=wasm32 |                           | llvmonly
+                 v                           v
 +-------------------------------------------------------+
 |                       LLVM bitcode                    |
 +----------------------------+--------------------------+
-                             | 
+                             | llc
+                             | -march=wasm32
                              v
 +-------------------------------------------------------+
-|                     llc march=wasm32                  |
+|                   LLVM WASM assembly                  |
 +----------------------------+--------------------------+
-                             |
-                             v
-+-------------------------------------------------------+
-|                     s2wasm + wasm-as                  |
-+----------------------------+--------------------------+
-                             |
+                             | s2wasm
+                             | + wasm-as
                              v
 +-------------------------------------------------------+
 |                        index.wasm                     |
++----------------------------------------+--------------+
+                 ^                       | libc
+           load  |                       | syscalls
+           file  |                       v 
++----------------+--------------------------------------+
+|                         index.js                      |
 +-------------------------------------------------------+
 ```
 
