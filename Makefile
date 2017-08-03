@@ -69,7 +69,6 @@ index.bc:   boot.c build/libc.bc build/libmono.bc hello.bc mscorlib.bc
 
 index.s:        index.bc
 	$(LLVM_PATH)/bin/llc -asm-verbose=false -march=wasm32 -o index.s index.bc
-	/usr/bin/perl -p -i -e "s/\.comm/.lcomm/g" index.s
 
 index.wasm:     index.s
 	$(BINARYEN_PATH)/bin/s2wasm --validate wasm --allocate-stack 20000000 index.s -o index.wast
