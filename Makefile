@@ -70,9 +70,11 @@ index.bc:   boot.c build/libc.bc build/libmono.bc hello.bc mscorlib.bc
 index.s:        index.bc
 	$(LLVM_PATH)/bin/llc -asm-verbose=false -march=wasm32 -o index.s index.bc
 
-index.wasm:     index.s
-	$(BINARYEN_PATH)/bin/s2wasm --validate wasm --allocate-stack 20000000 index.s -o index.wast
-	$(BINARYEN_PATH)/bin/wasm-as --validate wasm -g index.wast -o index.wasm
+index.wast:     index.s
+	$(BINARYEN_PATH)/bin/s2wasm --allocate-stack 2000000 index.s -o index.wast
+
+index.wasm:     index.wast
+	$(BINARYEN_PATH)/bin/wasm-as -g index.wast -o index.wasm
 
 missing.js: index.wast
 	(echo "var missing_functions = ["; grep "(import \"env\"" index.wast | grep -v global | awk '{ print $$3 }' | paste -s -d , -; echo "]") >& missing.js
