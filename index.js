@@ -76,6 +76,15 @@ function heap_set_string(ptr, str) {
   heap[ptr + str.length] = 0
 }
 
+function heap_malloc_string(str) {
+  if (str.length > 0) {
+    var ptr = instance.exports.malloc(str.length + 1)
+    heap_set_string(ptr, str)
+    return ptr
+  }
+  return 0
+}
+
 function debug(str) {
   if (debug_logs) {
     print(">> " + str);
