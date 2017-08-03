@@ -11,6 +11,13 @@ var instance;
 var heap;
 var heap_size;
 
+function heap_get_short(ptr) {
+  var d = 0;
+  d += (heap[ptr + 0] << 0);
+  d += (heap[ptr + 1] << 8);
+  return d;
+}
+
 function heap_get_int(ptr) {
   var d = 0;
   d += (heap[ptr + 0] << 0);
@@ -66,6 +73,18 @@ function heap_get_string(ptr, len=-1) {
     }
     str += String.fromCharCode(c);
     i++;
+  }
+  return str;
+}
+
+function heap_get_mono_string(ptr)
+{
+  var str_length = heap_get_int(ptr + 8)
+  var str_chars = ptr + 12
+  var str = ''
+  for (var i = 0; i < str_length; i++) {
+    var c = heap_get_short(str_chars + (i * 2))
+    str += String.fromCharCode(c);
   }
   return str;
 }
