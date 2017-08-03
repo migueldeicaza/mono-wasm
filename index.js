@@ -354,6 +354,15 @@ syscalls[224] = function() {
   return process_tid
 }
 
+syscalls_names[219] = 'madvise'
+syscalls[219] = function(addr, len, advice) {
+  if (advice == 4) {
+    // TODO
+    return 0
+  }
+  return -1
+}
+
 syscalls_names[238] = 'tkill'
 syscalls[238] = function(tid, signal) {
   if (tid == process_tid) {
