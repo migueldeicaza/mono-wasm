@@ -8,6 +8,11 @@ The final .wasm file is loaded from JavaScript (see `index.js`), which also expo
 
 This project is a work in progress. Feel free to ping me if you have questions or feedback: laurent.sansonetti@microsoft.com
 
+## Related repositories
+
+* [mono-wasm-mono](https://github.com/lrz/mono-wasm-mono): a fork of Mono with changes for a wasm32 target, used to build the runtime and compiler.
+* [mono-wasm-libc](https://github.com/lrz/mono-wasm-libc): a fork of the WebAssembly/musl C library with tweaks for our version of Mono and our JS glue.
+
 ## How does it work?
 
 An ASCII graph is worth a thousand words:
