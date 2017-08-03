@@ -4,5 +4,8 @@ index.wasm
 index.bc
 index.s
 boot.bc
-stubs.bc
 missing.js
+hello.dll
+hello.bc
+mscorlib.dll
+mscorlib.bc
