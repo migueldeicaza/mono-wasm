@@ -176,6 +176,16 @@ for (var i in missing_globals) {
   functions['env'][g] = 0;
 }
 
+// Temporary entry-point for exceptions raised by Mono. We assume that all
+// exceptions are fatal at this point.
+
+functions['env']['mono_wasm_throw_exception'] = function(exc) {
+  var class_str = heap_get_mono_string(heap_get_int(exc + 8))
+  var message_str = heap_get_mono_string(heap_get_int(exc + 12))
+  throw new TerminateWasmException('Mono Exception: '
+          + (class_str.length > 0 ? class_str + ': ' : '') + message_str)
+}
+
 var fds = {}
 fds[0] = undefined
 fds[1] = undefined
