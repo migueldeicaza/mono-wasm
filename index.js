@@ -275,6 +275,13 @@ syscalls[106] = function(path, s) {
     heap_set_int(s + 16, 0040000)   // st_mode -> S_IFDIR
     return 0
   }
+  for (var i in files) {
+    var file = "/" + files[i];
+    if (path_str == file) {
+      heap_set_int(s + 16, 0100000)   // st_mode -> S_IFREG
+      return 0
+    }
+  }
   return -1
 }
 
