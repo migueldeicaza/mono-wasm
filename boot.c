@@ -25,7 +25,11 @@ main(int argc, char **argv)
     printf("Opening hello.dll\n");
     MonoAssembly *assembly = mono_assembly_open("hello.dll", NULL);
     g_assert(assembly != NULL);
-    mono_jit_exec(domain, assembly, argc, argv);
+
+    printf("Running main()\n");
+    int mono_argc = 1;
+    char *mono_argv[] = { "/hello", NULL };
+    mono_jit_exec(domain, assembly, mono_argc, mono_argv);
 
     printf("Terminating mono runtime\n");
     mono_jit_cleanup(domain);
