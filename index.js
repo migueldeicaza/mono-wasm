@@ -4,6 +4,7 @@
 Error.stackTraceLimit = Infinity; // print the entire callstack on errors
 
 var debug_logs = true;
+var dump_cross_offsets = false;
 var functions = { env: {} };
 var module;
 var instance;
@@ -469,6 +470,11 @@ instance = new WebAssembly.Instance(module, functions);
 heap = new Uint8Array(instance.exports.memory.buffer);
 heap_size = instance.exports.memory.buffer.byteLength;
 debug("module heap: " + heap_size)
+
+if (dump_cross_offsets) {
+  // We don't care about freeing the memory as we exit soon after.
+  instance.exports.setenv(heap_malloc_string('DUMP_CROSS_OFFSETS'), heap_malloc_string('1'), 1)
+}
 
 debug("running main()")
 var ret = instance.exports.main();
