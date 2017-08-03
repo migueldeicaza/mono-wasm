@@ -140,7 +140,7 @@ Now, we can now build the Mono compiler itself.
 $ cd ~/src/mono-wasm
 $ git clone git@github.com:lrz/mono-wasm-mono.git mono-compiler
 $ cd mono-compiler
-$ ./autogen.sh --host=i386-darwin CFLAGS=-DTARGET_WASM32 --disable-boehm --with-sigaltstack=no --enable-llvm --enable-llvm-runtime --with-llvm=../llvm-mono-build --disable-btls --with-runtime_preset=testing_aot_full
+$ ./autogen.sh --host=i386-darwin --with-cross-offsets=offsets-wasm32.h CFLAGS="-DCOMPILE_WASM32 -DMONO_CROSS_COMPILE" --disable-boehm --with-sigaltstack=no --enable-llvm --enable-llvm-runtime --with-llvm=../llvm-mono-build --disable-btls --with-runtime_preset=testing_aot_full
 $ make
 ```
 
