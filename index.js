@@ -193,6 +193,19 @@ fds[0] = undefined
 fds[1] = undefined
 fds[2] = undefined
 
+var out_buffer = '';
+
+function out_buffer_add(ptr, len) {
+  out_buffer += heap_get_string(ptr, len)
+}
+
+function out_buffer_flush() {
+  if (out_buffer.charAt(out_buffer.length - 1) == '\n') {
+    print(out_buffer.substr(0, out_buffer.length - 1))
+    out_buffer = ''
+  }
+}
+
 var files = ['mscorlib.dll', 'hello.dll']
 
 var syscalls = {}
@@ -210,6 +223,16 @@ syscalls[3] = function(fd, buf, len) {
   }
   error('read() called with invalid fd ' + fd)
   return -1
+}
+
+syscalls_names[4] = 'write'
+syscalls[4] = function(fd, buf, len) {
+  if (fd == 1 || fd == 2) {
+    out_buffer_add(buf, len)
+    out_buffer_flush()
+    return len
+  }
+  error('write() called with invalid fd ' + fd)
 }
 
 syscalls_names[6] = 'close';
@@ -268,8 +291,7 @@ syscalls[85] = function(path, buf, buflen) {
   return -1
 }
 
-var out_buffer = '';
-syscalls_names[146] = 'write';
+syscalls_names[146] = 'writev';
 syscalls[146] = function(fd, iovs, iov_count) {
   if (fd == 1 || fd == 2) {
     var all_lens = 0
@@ -277,13 +299,10 @@ syscalls[146] = function(fd, iovs, iov_count) {
       var base = heap_get_int(iovs + (i * 8))
       var len = heap_get_int(iovs + 4 + (i * 8))
       debug("write fd: " + fd + ", base: " + base + ", len: " + len)
-      out_buffer += heap_get_string(base, len)
+      out_buffer_add(base, len)
       all_lens += len
     }
-    if (out_buffer.charAt(out_buffer.length - 1) == '\n') {
-      print(out_buffer.substr(0, out_buffer.length - 1))
-      out_buffer = ''
-    }
+    out_buffer_flush()
     return all_lens
   }
   error("can only write on stdout and stderr") 
