@@ -105,6 +105,19 @@ function heap_malloc_string(str) {
   return 0
 }
 
+function heap_human(size) {
+  var suffixes = ['B', 'K', 'M', 'G']
+  var suffix;
+  for (var i in suffixes) {
+    suffix = suffixes[i]
+    if (size < 1000) {
+      break
+    }
+    size /= 1000
+  }
+  return size.toFixed(2) + suffix
+}
+
 function debug(str) {
   if (debug_logs) {
     print(">> " + str);
@@ -256,6 +269,7 @@ syscalls_names[45] = 'brk';
 syscalls[45] = function(inc) {
   if (inc == 0) {
     brk_current = heap_size;
+    print("brk: current heap " + heap_human(brk_current))
     return brk_current;
   }
   if (brk_current + inc > heap_size) {
@@ -264,10 +278,10 @@ syscalls[45] = function(inc) {
     var new_pages_needed = Math.ceil(delta / 65536.0)
     var memory = instance.exports.memory
     var n = memory.grow(new_pages_needed);
-    debug("grow heap +" + new_pages_needed + " pages from " + n
-            + " pages, heap " + heap_size + " -> " + memory.buffer.byteLength)
+    var new_heap_size = memory.buffer.byteLength
+    debug("brk: pages " + n + " -> " + (n + new_pages_needed) + " (+" + new_pages_needed + "), heap " + heap_human(heap_size) + " -> " + heap_human(new_heap_size) + " (+" + heap_human(new_heap_size - heap_size) + ")")
     heap = new Uint8Array(memory.buffer)
-    heap_size = memory.buffer.byteLength
+    heap_size = new_heap_size
   }
   return inc
 }
