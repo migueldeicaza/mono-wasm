@@ -182,8 +182,10 @@ for (var i in missing_globals) {
 functions['env']['mono_wasm_throw_exception'] = function(exc) {
   var class_str = heap_get_mono_string(heap_get_int(exc + 8))
   var message_str = heap_get_mono_string(heap_get_int(exc + 12))
-  throw new TerminateWasmException('Mono Exception: '
-          + (class_str.length > 0 ? class_str + ': ' : '') + message_str)
+  msg = ('Mono Exception: ' + (class_str.length > 0 ? class_str + ': ' : '')
+          + message_str)
+  error(msg)
+  throw new TerminateWasmException(msg)
 }
 
 var fds = {}
