@@ -13,6 +13,10 @@ This project is a work in progress. Feel free to ping me if you have questions o
 * [mono-wasm-mono](https://github.com/lrz/mono-wasm-mono): a fork of Mono with changes for a wasm32 target, used to build the runtime and compiler.
 * [mono-wasm-libc](https://github.com/lrz/mono-wasm-libc): a fork of the WebAssembly/musl C library with tweaks for our version of Mono and our JS glue.
 
+## Current status
+
+This is a work in progress, but you can see a simple `System.Console.PrintLine("hello world")` example running here: www.hipbyte.com/~lrz/mono-wasm-hello
+
 ## How does it work?
 
 An ASCII graph is worth a thousand words:
@@ -193,13 +197,8 @@ This will build the mono runtime as LLVM bitcode, then the libc as LLVM bitcode,
 
 TODO (now):
 
-* get `System.Console.PrintLine("hello world")` running
-
-TODO (later):
-
 * do a C# IR linker pass to reduce the size of the assemblies (mscorlib is currently too big)
 * work on patches for mono based on the changes made in the fork
-* merge the WebAssembly upstream code into the mono/llvm fork so that the compiler can target wasm32
+* merge the WebAssembly LLVM code into the mono/llvm fork so that the compiler can target wasm32
 * write a simple tool that does the IR -> wasm generation (instead of calling llc + the binaryen tools) so that we can better control linking optimizations (ex. LTO)
-* investigate threads, sockets, file system, debugger, stack unwinding...
-* better heap management (madvise), currently uses too much memory 
+* investigate threads, sockets, debugger, stack unwinding (+ scanning for the GC), simd and atomic operations, etc.
