@@ -15,7 +15,7 @@ This project is a work in progress. Feel free to ping me if you have questions o
 
 ## Current status
 
-This is a work in progress, but you can see a simple `System.Console.PrintLine("hello world")` example running here: www.hipbyte.com/~lrz/mono-wasm-hello
+This is a work in progress, but you can see `hello.cs` running here: www.hipbyte.com/~lrz/mono-wasm-hello
 
 ## How does it work?
 
