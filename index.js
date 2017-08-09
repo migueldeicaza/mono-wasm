@@ -3,10 +3,10 @@
 
 Error.stackTraceLimit = Infinity; // print the entire callstack on errors
 
-var debug_logs = true;
 var dump_cross_offsets = false;
+var debug_logs = false;
+var browser_environment = false;
 var functions = { env: {} };
-var module;
 var instance;
 var heap;
 var heap_size;
@@ -118,14 +118,18 @@ function heap_human(size) {
   return size.toFixed(2) + suffix
 }
 
+function log(str) {
+  browser_environment ? console.log(str) : print(str)
+}
+
 function debug(str) {
   if (debug_logs) {
-    print(">> " + str);
+    log(">> " + str);
   }
 }
 
 function error(str) {
-  print("!! " + str + ": " + new Error().stack);
+  log("!! " + str + ": " + new Error().stack);
 }
 
 function TerminateWasmException(value) {
@@ -214,12 +218,13 @@ function out_buffer_add(ptr, len) {
 
 function out_buffer_flush() {
   if (out_buffer.charAt(out_buffer.length - 1) == '\n') {
-    print(out_buffer.substr(0, out_buffer.length - 1))
+    log(out_buffer.substr(0, out_buffer.length - 1))
     out_buffer = ''
   }
 }
 
 var files = ['mscorlib.dll', 'hello.dll']
+var files_content = {}
 
 var syscalls = {}
 var syscalls_names = {}
@@ -269,7 +274,7 @@ syscalls_names[45] = 'brk';
 syscalls[45] = function(inc) {
   if (inc == 0) {
     brk_current = heap_size;
-    print("brk: current heap " + heap_human(brk_current))
+    debug("brk: current heap " + heap_human(brk_current))
     return brk_current;
   }
   if (brk_current + inc > heap_size) {
@@ -445,7 +450,7 @@ syscalls[238] = function(tid, signal) {
 
 syscalls_names[252] = 'exit';
 syscalls[252] = function(code) {
-  debug("exit(" + code + "): " + new Error().stack)
+  log("exit(" + code + "): " + new Error().stack)
   throw new TerminateWasmException('exit(' + code + ')');
 }
 
@@ -489,7 +494,12 @@ syscalls[295] = function(at, filename, flags, mode) {
         var obj = {};
         obj['offset'] = 0;
         obj['path'] = filename_str;
-        obj['content'] = new Uint8Array(readbuffer(filename_str))
+        var buf = files_content[filename_str]
+        if (!buf) {
+          buf = new Uint8Array(readbuffer(filename_str))
+          files_content[filename_str] = buf
+        } 
+        obj['content'] = buf
         fd = Object.keys(fds).length;
         fds[fd] = obj;
       }
@@ -537,18 +547,44 @@ for (var i in [0, 1, 2, 3, 4, 5, 6]) {
 }
 functions['env']['__syscall_cp'] = route_syscall
 
-module = new WebAssembly.Module(read('index.wasm', 'binary'));
-instance = new WebAssembly.Instance(module, functions);
-
-heap = new Uint8Array(instance.exports.memory.buffer);
-heap_size = instance.exports.memory.buffer.byteLength;
-debug("module heap: " + heap_size)
-
-if (dump_cross_offsets) {
-  // We don't care about freeing the memory as we exit soon after.
-  instance.exports.setenv(heap_malloc_string('DUMP_CROSS_OFFSETS'), heap_malloc_string('1'), 1)
+function run_wasm_code() {
+  heap = new Uint8Array(instance.exports.memory.buffer);
+  heap_size = instance.exports.memory.buffer.byteLength;
+  
+  if (dump_cross_offsets) {
+    // We don't care about freeing the memory as we exit soon after.
+    instance.exports.setenv(heap_malloc_string('DUMP_CROSS_OFFSETS'), heap_malloc_string('1'), 1)
+  }
+  
+  debug("running main()")
+  var ret = instance.exports.main();
+  debug('main() returned: ' + ret);
 }
 
-debug("running main()")
-var ret = instance.exports.main();
-debug('main() returned: ' + ret);
+if (browser_environment) {
+  fetch('index.wasm').then(function(response) {
+    return response.arrayBuffer()
+  }).then(function(buf) {
+    return WebAssembly.compile(buf)
+  }).then(function(mod) {
+    return WebAssembly.instantiate(mod, functions)
+  }).then(function(i) {
+    instance = i
+    var files_promises = [];
+    files.forEach(function(url, i) {
+      files_promises.push(
+        fetch(url).then(function(res){
+          return res.arrayBuffer();
+        }).then(function(buf){
+          files_content[url] = new Uint8Array(buf)
+        })
+      );
+    });
+    Promise.all(files_promises).then(function() { run_wasm_code() })
+  })
+}
+else {
+  var module = new WebAssembly.Module(read('index.wasm', 'binary'))
+  instance = new WebAssembly.Instance(module, functions)
+  run_wasm_code()
+}
