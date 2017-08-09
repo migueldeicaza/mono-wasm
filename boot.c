@@ -1,11 +1,15 @@
 #include <mono/mini/mini.h>
 #include <mono/metadata/assembly.h>
+#include <locale.h>
 
 int
 main(int argc, char **argv)
 {
     printf("Starting mono runtime\n");
 
+    setlocale(LC_ALL, "");
+
+    g_setenv("LANG", "en_US", 1);
     g_setenv("MONO_PATH", ".", 1);
     g_setenv("MONO_LOG_LEVEL", "debug", 1);
 
