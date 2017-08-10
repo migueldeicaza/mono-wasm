@@ -5,13 +5,13 @@
 int
 main(int argc, char **argv)
 {
-    printf("Starting mono runtime\n");
+    g_log("mono-wasm", G_LOG_LEVEL_INFO, "booting main()");
 
     setlocale(LC_ALL, "");
 
     g_setenv("LANG", "en_US", 1);
     g_setenv("MONO_PATH", ".", 1);
-    g_setenv("MONO_LOG_LEVEL", "debug", 1);
+    g_setenv("MONO_LOG_LEVEL", "error"/*"debug"*/, 1);
 
     g_log_set_always_fatal(G_LOG_LEVEL_ERROR);
     g_log_set_fatal_mask(G_LOG_DOMAIN, G_LOG_LEVEL_ERROR);
@@ -23,20 +23,21 @@ main(int argc, char **argv)
     mono_aot_register_module(mono_aot_module_mscorlib_info);
     mono_aot_register_module(mono_aot_module_hello_info);
 
+    g_log("mono-wasm", G_LOG_LEVEL_INFO, "initializing mono runtime");
     mono_jit_set_aot_mode(MONO_AOT_MODE_LLVMONLY);
     MonoDomain *domain = mono_jit_init_version("hello", "v4.0.30319");
 
-    printf("Opening hello.dll\n");
+    g_log("mono-wasm", G_LOG_LEVEL_INFO, "opening hello.dll");
     MonoAssembly *assembly = mono_assembly_open("hello.dll", NULL);
     g_assert(assembly != NULL);
 
-    printf("Running main()\n");
+    g_log("mono-wasm", G_LOG_LEVEL_INFO, "running Hello.Main()");
     int mono_argc = 1;
     char *mono_argv[] = { "/hello", NULL };
-    mono_jit_exec(domain, assembly, mono_argc, mono_argv);
+    int ret = mono_jit_exec(domain, assembly, mono_argc, mono_argv);
 
-    printf("Terminating mono runtime\n");
-    mono_jit_cleanup(domain);
+    g_log("mono-wasm", G_LOG_LEVEL_INFO, "terminating mono runtime");
+    //mono_jit_cleanup(domain);
 
-    return 0;
+    return ret;
 }
