@@ -551,7 +551,7 @@ function route_syscall() {
               + ')')
   f = syscalls[n]
   if (!f) {
-    debug('unimplemented syscall ' + n + ' called: ' + new Error().stack)
+    error('unimplemented syscall ' + n + ' called')
     return -1
   }
   return f.apply(this, argv)
