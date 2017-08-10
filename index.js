@@ -297,6 +297,21 @@ syscalls[54] = function(fd, req, arg) {
   return 0
 }
 
+syscalls_names[55] = 'fcntl';
+syscalls[55] = function(fd, cmd, arg) {
+  if (cmd == 3) {
+    // F_GETFL
+    if (fd == 1 || fd == 2) {
+      return 1 // O_WRONLY
+    }
+    if (fd == 0 || fds[fd]) {
+      return 0 // O_RDONLY
+    }
+  }
+  error('fcntl() called with invalid fd ' + fd + ' and/or cmd ' + cmd)
+  return -1
+}
+
 syscalls_names[76] = 'getrlimit'
 syscalls[76] = function(resource, rlim) {
   // TODO
