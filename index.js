@@ -5,11 +5,12 @@ Error.stackTraceLimit = Infinity; // print the entire callstack on errors
 
 var dump_cross_offsets = false;
 var debug_logs = false;
-var browser_environment = false;
 var functions = { env: {} };
 var instance;
 var heap;
 var heap_size;
+
+var browser_environment = (typeof window != "undefined");
 
 function heap_get_short(ptr) {
   var d = 0;
