@@ -25,7 +25,7 @@ build/libeglib.bc: $(patsubst %, build/eglib/%.bc, garray goutput gbytearray gpa
 
 build/libmono.bc: build/libmini.bc build/libmetadata.bc build/libutils.bc build/libsgen.bc build/libeglib.bc
 
-build/libc.bc: $(patsubst %.c, build/libc/%.bc, $(shell (cd $(LIBC_PATH)/src && ls {ctype,env,errno,exit,internal,ldso,dlmalloc,locale,math,prng,signal,stdio,string,stdlib,time,unistd}/*.c | grep -Ev "(pread|pwrite|sigaltstack|strtok_r)")) conf/sysconf.c fcntl/open.c thread/__lock.c misc/getrlimit.c mman/madvise.c stat/stat.c stat/fstat.c)
+build/libc.bc: $(patsubst %.c, build/libc/%.bc, $(shell (cd $(LIBC_PATH)/src && ls {ctype,env,errno,exit,internal,ldso,dlmalloc,fcntl,locale,math,prng,signal,stdio,string,stdlib,time,unistd}/*.c | grep -Ev "(pread|pwrite|sigaltstack|strtok_r)")) conf/sysconf.c thread/__lock.c misc/getrlimit.c mman/madvise.c stat/stat.c stat/fstat.c)
 
 build/libmini.bc build/libmetadata.bc build/libeglib.bc build/libsgen.bc build/libutils.bc build/libmono.bc build/libc.bc:
 	$(LLVM_PATH)/bin/llvm-link $^ -o $@
