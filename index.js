@@ -228,10 +228,8 @@ var files = ['mscorlib.dll', 'hello.dll']
 var files_content = {}
 
 var syscalls = {}
-var syscalls_names = {}
 
-syscalls_names[3] = 'read';
-syscalls[3] = function(fd, buf, len) {
+syscalls[3] = function SYS_read(fd, buf, len) {
   var obj = fds[fd]
   if (obj) {
     debug('read(' + fd + ') -> ' + len) 
@@ -244,8 +242,7 @@ syscalls[3] = function(fd, buf, len) {
   return -1
 }
 
-syscalls_names[4] = 'write'
-syscalls[4] = function(fd, buf, len) {
+syscalls[4] = function SYS_write(fd, buf, len) {
   if (fd == 1 || fd == 2) {
     out_buffer_add(buf, len)
     out_buffer_flush()
@@ -254,8 +251,7 @@ syscalls[4] = function(fd, buf, len) {
   error('write() called with invalid fd ' + fd)
 }
 
-syscalls_names[6] = 'close';
-syscalls[6] = function(fd) {
+syscalls[6] = function SYS_close(fd) {
   var obj = fds[fd]
   if (obj) {
     fds[fd] = undefined
@@ -265,14 +261,12 @@ syscalls[6] = function(fd) {
   return -1
 }
 
-syscalls_names[20] = 'getpid';
-syscalls[20] = function() {
+syscalls[20] = function SYS_getpid() {
   return 42
 }
 
 var brk_current = 0
-syscalls_names[45] = 'brk';
-syscalls[45] = function(inc) {
+syscalls[45] = function SYS_brk(inc) {
   if (inc == 0) {
     brk_current = heap_size;
     debug("brk: current heap " + heap_human(brk_current))
@@ -292,14 +286,12 @@ syscalls[45] = function(inc) {
   return inc
 }
 
-syscalls_names[54] = 'ioctl';
-syscalls[54] = function(fd, req, arg) {
+syscalls[54] = function SYS_ioctl(fd, req, arg) {
   // TODO
   return 0
 }
 
-syscalls_names[55] = 'fcntl';
-syscalls[55] = function(fd, cmd, arg) {
+syscalls[55] = function SYS_fcntl(fd, cmd, arg) {
   if (cmd == 3) {
     // F_GETFL
     if (fd == 1 || fd == 2) {
@@ -313,21 +305,18 @@ syscalls[55] = function(fd, cmd, arg) {
   return -1
 }
 
-syscalls_names[76] = 'getrlimit'
-syscalls[76] = function(resource, rlim) {
+syscalls[76] = function SYS_getrlimit(resource, rlim) {
   // TODO
   return 0
 }
 
-syscalls_names[85] = 'readlink'
-syscalls[85] = function(path, buf, buflen) {
+syscalls[85] = function SYS_readlink(path, buf, buflen) {
   // TODO
   debug('readlink("' + heap_get_string(path) + '")')
   return -1
 }
 
-syscalls_names[146] = 'writev';
-syscalls[146] = function(fd, iovs, iov_count) {
+syscalls[146] = function SYS_writev(fd, iovs, iov_count) {
   if (fd == 1 || fd == 2) {
     var all_lens = 0
     for (var i = 0; i < iov_count; i++) {
@@ -346,8 +335,7 @@ syscalls[146] = function(fd, iovs, iov_count) {
 
 var sizeof_k_sigaction = 20
 var signals = {} // maps signal numbers to k_sigaction UInt8Array
-syscalls_names[174] = 'sigaction'
-syscalls[174] = function(sig, act, oact, mask_len) {
+syscalls[174] = function SYS_sigaction(sig, act, oact, mask_len) {
   if (mask_len != 8) {
     error('mask_len should be 8 (is ' + mask_len + ')')
     mask_len = 8
@@ -362,8 +350,7 @@ syscalls[174] = function(sig, act, oact, mask_len) {
   return 0
 }
 
-syscalls_names[106] = 'stat'
-syscalls[106] = function(path, s) {
+syscalls[106] = function SYS_stat(path, s) {
   var path_str = heap_get_string(path)
   debug('stat("' + path_str + '")')
   if (path_str == "/") {
@@ -380,8 +367,7 @@ syscalls[106] = function(path, s) {
   return -1
 }
 
-syscalls_names[108] = 'fstat'
-syscalls[108] = function(fd, s) {
+syscalls[108] = function SYS_fstat(fd, s) {
   var obj = fds[fd]
   if (obj) {
     var st_size = obj['content'].length
@@ -393,8 +379,7 @@ syscalls[108] = function(fd, s) {
   return -1
 }
 
-syscalls_names[140] = 'lseek'
-syscalls[140] = function(fd, unused, offset, result, whence) {
+syscalls[140] = function SYS_lseek(fd, unused, offset, result, whence) {
   var obj = fds[fd]
   if (obj) {
     if (whence == 0) {
@@ -417,14 +402,12 @@ syscalls[140] = function(fd, unused, offset, result, whence) {
   return -1
 }
 
-syscalls_names[175] = 'sigprocmask'
-syscalls[175] = function(action, mask, set, sig_n) {
+syscalls[175] = function SYS_sigprocmask(action, mask, set, sig_n) {
   // TODO
   return 0
 }
 
-syscalls_names[183] = 'getcwd'
-syscalls[183] = function(buf, buflen) {
+syscalls[183] = function SYS_getcwd(buf, buflen) {
   if (buflen > 1) {
     heap_set_string(buf, "/")
     return 0
@@ -434,13 +417,11 @@ syscalls[183] = function(buf, buflen) {
 }
 
 var process_tid = 42 // Should fix this once we get multithreading
-syscalls_names[224] = 'gettid'
-syscalls[224] = function() {
+syscalls[224] = function SYS_gettid() {
   return process_tid
 }
 
-syscalls_names[219] = 'madvise'
-syscalls[219] = function(addr, len, advice) {
+syscalls[219] = function SYS_madvise(addr, len, advice) {
   if (advice == 4) {
     // TODO
     return 0
@@ -448,8 +429,7 @@ syscalls[219] = function(addr, len, advice) {
   return -1
 }
 
-syscalls_names[238] = 'tkill'
-syscalls[238] = function(tid, signal) {
+syscalls[238] = function SYS_tkill(tid, signal) {
   if (tid == process_tid) {
     if (signal == 6) {
       // SIGABRT
@@ -464,14 +444,12 @@ syscalls[238] = function(tid, signal) {
   return -1
 }
 
-syscalls_names[252] = 'exit';
-syscalls[252] = function(code) {
+syscalls[252] = function SYS_exit(code) {
   log("exit(" + code + "): " + new Error().stack)
   throw new TerminateWasmException('exit(' + code + ')');
 }
 
-syscalls_names[265] = 'clock_gettime';
-syscalls[265] = function(clock_id, timespec) {
+syscalls[265] = function SYS_clock_gettime(clock_id, timespec) {
   // TODO should switch to something else with a higher resolution + support
   // the different CLOCK_ ids.
   if (timespec) {
@@ -486,8 +464,7 @@ syscalls[265] = function(clock_id, timespec) {
   return 0;
 }
 
-syscalls_names[266] = 'clock_getres';
-syscalls[266] = function(clock_id, timespec) {
+syscalls[266] = function SYS_clock_getred(clock_id, timespec) {
   if (timespec) {
     // Our gettime JS implementation has a 1ms resolution.
     heap_set_int(timespec, 0)           // tv_sec
@@ -496,8 +473,7 @@ syscalls[266] = function(clock_id, timespec) {
   return 0
 }
 
-syscalls_names[295] = 'openat';
-syscalls[295] = function(at, filename, flags, mode) {
+syscalls[295] = function SYS_openat(at, filename, flags, mode) {
   if (at == -100) {
     // AT_FDCWD
     if (flags == 0100000) {
@@ -527,30 +503,22 @@ syscalls[295] = function(at, filename, flags, mode) {
   return -1
 }
 
-syscalls_names[340] = 'prlimit64'
-syscalls[340] = function(pid, resource, new_rlim, old_rlim) {
+syscalls[340] = function SYS_prlimit64(pid, resource, new_rlim, old_rlim) {
   // TODO
   return 0
 }
 
-syscalls_names[375] = 'membarrier'
-syscalls[375] = function() {
+syscalls[375] = function SYS_membarrier() {
   return 0
 }
 
 function route_syscall() {
   n = arguments[0]
-  name = syscalls_names[n]
-  if (name) {
-    name = "SYS_" + name
-  }
-  else {
-    name = n
-  }
   argv = [].slice.call(arguments, 1)
+  f = syscalls[n]
+  name = f ? f.name : n
   debug('syscall(' + name + (argv.length > 0 ? ', ' + argv.join(', ') : '')
               + ')')
-  f = syscalls[n]
   if (!f) {
     error('unimplemented syscall ' + n + ' called')
     return -1
