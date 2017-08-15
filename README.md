@@ -197,14 +197,14 @@ This will build the mono runtime as LLVM bitcode, then the libc as LLVM bitcode,
 
 TODO (now):
 
-* create a simple `mono-wasm` tool that collects all the compilation steps (mono, llc, s2wasm and wasm-as)
-  * takes C# assemblies and create a directory with wasm, JS and stripped DLL files
-  * easier to distribute to users (one binary instead of 5)
+* create a simple `mono-wasm` tool that collects all the compilation steps in one place (mono, llc, s2wasm and wasm-as)
+  * takes C# assemblies and creates a directory with the wasm code, minified JS and stripped DLL files
+  * easier to distribute to users (one binary instead of 4)
   * significantly reduce the compilation time as we can do everything in memory (instead of creating/parsing huge files)
-  * better linking optimizations control (ex. we can enable LTO at the bitcode level)
-* do a compilation profile for mscorlib based on the Xamarin/iOS one (we currently use the desktop one which is big)
-* fix garbage collection 
-* first 'alpha' release
+  * better control of linking optimizations (ex. we can enable LTO at the bitcode level)
+* do a compilation profile for mscorlib based on Xamarin/iOS instead of using the default desktop profile, so that we can reduce the file size
+* fix garbage collection (need to figure out how to scan the stack)
+* ship a first 'alpha' release
 
 TODO (later):
 
