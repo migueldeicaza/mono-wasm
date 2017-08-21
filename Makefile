@@ -63,18 +63,14 @@ mscorlib.dll:
 %.bc : %.dll mscorlib.dll
 	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER_PATH)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
 
-index.bc:   boot.c build/libc.bc build/libmono.bc hello.bc mscorlib.bc
+boot.bc:        boot.c
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o boot.bc
-	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc boot.bc hello.bc mscorlib.bc -o index.bc
 
-index.s:        index.bc
-	$(LLVM_PATH)/bin/llc -asm-verbose=false -march=wasm32 -o index.s index.bc
+runtime.bc:     boot.bc build/libc.bc build/libmono.bc
+	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc boot.bc -o runtime.bc
 
-index.wast:     index.s
-	$(BINARYEN_PATH)/bin/s2wasm --allocate-stack 2000000 index.s -o index.wast
-
-index.wasm:     index.wast
-	$(BINARYEN_PATH)/bin/wasm-as -g index.wast -o index.wasm
+index.wasm:   hello.bc mscorlib.bc runtime.bc mono-wasm
+	./mono-wasm hello.bc mscorlib.bc runtime.bc -o index.wasm
 
 missing.js: index.wast
 	(echo "var missing_functions = ["; grep "(import \"env\"" index.wast | grep -v global | awk '{ print $$3 }' | paste -s -d , -; echo "]") >& missing.js
