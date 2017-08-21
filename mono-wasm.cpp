@@ -187,12 +187,12 @@ wasm_link(const char *text)
 }
 
 static void
-wasm_write(wasm::Module &wasm, const char *path)
+wasm_write(wasm::Module &wasm, bool debug_names, const char *path)
 {
     wasm::BufferWithRandomAccess buffer(false);
 
     wasm::WasmBinaryWriter writer(&wasm, buffer, false);
-    writer.setNamesSection(true);
+    writer.setNamesSection(debug_names);
     writer.write();
 
     wasm::Output output(path, wasm::Flags::Binary, wasm::Flags::Release);
@@ -208,13 +208,15 @@ main(int argc, char **argv)
                 "Options:\n" \
                 "    -o <output.wasm>      - Output file\n" \
                 "    -On                   - Specify optimization level\n" \
-                "                            (0, 1, 2, 3, default is 2)\n",
+                "                            (0, 1, 2, 3, default is 2)\n" \
+                "    -g                    - Emit debug information\n",
                 argv[0]);
         exit(1);
     }
 
     const char *output_path = NULL;
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
+    bool emit_debug = false;
     std::vector<std::string> paths;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -225,6 +227,9 @@ main(int argc, char **argv)
                 exit(1);
             }
             output_path = argv[i];
+        }
+        else if (strcmp(arg, "-g") == 0) {
+            emit_debug = true;
         }
         else if (arg[0] == '-' && arg[1] == 'O') {
            switch (arg[2]) {
@@ -281,7 +286,8 @@ main(int argc, char **argv)
     T_MEASURE("wasm link", auto linker = wasm_link(text));
 
     T_MEASURE("wasm write",
-            wasm_write(linker.get()->getOutput().wasm, output_path));
+            wasm_write(linker.get()->getOutput().wasm, emit_debug,
+                output_path));
 
     T_PRINT("total", total);
 

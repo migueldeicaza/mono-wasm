@@ -70,7 +70,7 @@ runtime.bc:     boot.bc build/libc.bc build/libmono.bc
 	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc boot.bc -o runtime.bc
 
 index.wasm:   hello.bc mscorlib.bc runtime.bc mono-wasm
-	./mono-wasm hello.bc mscorlib.bc runtime.bc -o index.wasm
+	./mono-wasm hello.bc mscorlib.bc runtime.bc -g -o index.wasm
 
 missing.js: index.wast
 	(echo "var missing_functions = ["; grep "(import \"env\"" index.wast | grep -v global | awk '{ print $$3 }' | paste -s -d , -; echo "]") >& missing.js
