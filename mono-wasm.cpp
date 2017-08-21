@@ -175,11 +175,11 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
 }
 
 static std::unique_ptr<wasm::Linker>
-wasm_link(const char *text)
+wasm_link(const char *text, size_t stack_size)
 {
     wasm::S2WasmBuilder builder(text, false);
 
-    auto linker = std::make_unique<wasm::Linker>(0, 2000000, 0, 0, false,
+    auto linker = std::make_unique<wasm::Linker>(0, stack_size, 0, 0, false,
             false, "", false);
     linker->linkObject(builder);
     linker->layout();
@@ -209,7 +209,9 @@ main(int argc, char **argv)
                 "    -o <output.wasm>      - Output file\n" \
                 "    -On                   - Specify optimization level\n" \
                 "                            (0, 1, 2, 3, default is 2)\n" \
-                "    -g                    - Emit debug information\n",
+                "    -g                    - Emit debug information\n" \
+                "    -s <size>             - Specify stack size in bytes\n" \
+                "                            (default is 2M)\n",
                 argv[0]);
         exit(1);
     }
@@ -217,6 +219,7 @@ main(int argc, char **argv)
     const char *output_path = NULL;
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
     bool emit_debug = false;
+    size_t stack_size = 1024 * 1000 * 2;
     std::vector<std::string> paths;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -227,6 +230,18 @@ main(int argc, char **argv)
                 exit(1);
             }
             output_path = argv[i];
+        }
+        else if (strcmp(arg, "-s") == 0) {
+            i++;
+            if (i >= argc) {
+                fprintf(stderr, "expected value for `-s' option\n");
+                exit(1);
+            }
+            stack_size = atoi(argv[i]);
+            if (stack_size <= 0) {
+                fprintf(stderr, "`-s' value should be greater than zero\n");
+                exit(1);
+            }
         }
         else if (strcmp(arg, "-g") == 0) {
             emit_debug = true;
@@ -283,7 +298,7 @@ main(int argc, char **argv)
     T_MEASURE("wasm assembly",
             auto text = wasm_assembly(module.get(), opt, context));
 
-    T_MEASURE("wasm link", auto linker = wasm_link(text));
+    T_MEASURE("wasm link", auto linker = wasm_link(text, stack_size));
 
     T_MEASURE("wasm write",
             wasm_write(linker.get()->getOutput().wasm, emit_debug,
