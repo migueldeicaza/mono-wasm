@@ -82,5 +82,11 @@ missing.js: index.wast
 run:    index.wasm missing.js index.js
 	$(D8_PATH) --expose-wasm index.js
 
+BINARYEN_SRCS = $(BINARYEN_PATH)/src/wasm-linker.cpp
+BINARYEN_LIBS = $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ast cfg asmjs) 
+
+mono-wasm:      mono-wasm.cpp
+	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags --libs BitReader BitWriter Core IRReader Linker Object Support TransformUtils IPO webassembly) -std=c++1y -UNDEBUG -fexceptions -DNO_EMSCRIPTEN_GLUE -I$(BINARYEN_PATH)/src -g mono-wasm.cpp $(BINARYEN_SRCS) -o mono-wasm -lncurses -lz $(BINARYEN_LIBS)
+
 clean:
-	/bin/rm -rf build missing.js index.wasm index.wast index.s index.bc hello.bc hello.dll mscorlib.bc mscorlib.dll boot.bc
+	/bin/rm -rf build missing.js index.wasm index.wast index.s index.bc hello.bc hello.dll mscorlib.bc mscorlib.dll boot.bc mono-wasm
