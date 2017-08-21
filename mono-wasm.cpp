@@ -125,7 +125,8 @@ public:
 };
 
 static const char *
-wasm_assembly(llvm::Module *module, llvm::LLVMContext &context)
+wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
+        llvm::LLVMContext &context)
 {
     LLVMInitializeWebAssemblyTarget();
     LLVMInitializeWebAssemblyTargetMC();
@@ -142,7 +143,6 @@ wasm_assembly(llvm::Module *module, llvm::LLVMContext &context)
 
     std::string cpu_str = "";
     std::string features_str = "";
-    auto opt_level = llvm::CodeGenOpt::Default;
     llvm::TargetOptions options;
     options.MCOptions.AsmVerbose = false;
 
@@ -203,13 +203,55 @@ int
 main(int argc, char **argv)
 {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s files...\n", argv[0]);
+        fprintf(stderr,
+                "Usage: %s [options] <input files>\n\n" \
+                "Options:\n" \
+                "    -o <output.wasm>      - Output file\n" \
+                "    -On                   - Specify optimization level\n" \
+                "                            (0, 1, 2, 3, default is 2)\n",
+                argv[0]);
         exit(1);
     }
 
+    const char *output_path = NULL;
+    llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
     std::vector<std::string> paths;
     for (int i = 1; i < argc; i++) {
-        paths.push_back(argv[i]);
+        const char *arg = argv[i];
+        if (strcmp(arg, "-o") == 0) {
+            i++;
+            if (i >= argc) {
+                fprintf(stderr, "expected value for `-o' option\n");
+                exit(1);
+            }
+            output_path = argv[i];
+        }
+        else if (arg[0] == '-' && arg[1] == 'O') {
+           switch (arg[2]) {
+               case '0':
+                   opt = llvm::CodeGenOpt::None;
+                   break;
+               case '1':
+                   opt = llvm::CodeGenOpt::Less;
+                   break;
+               case '2':
+                   opt = llvm::CodeGenOpt::Default;
+                   break;
+               case '3':
+                   opt = llvm::CodeGenOpt::Aggressive;
+                   break;
+               default:
+                   fprintf(stderr, "malformed `-On' option\n");
+                   exit(1);
+           }
+        }
+        else {
+            paths.push_back(arg);
+        }
+    }
+    if (output_path == NULL) {
+        fprintf(stderr, "`-o' option required\n");
+        exit(1);
     }
 
     llvm::LLVMContext context;
@@ -234,12 +276,12 @@ main(int argc, char **argv)
     T_MEASURE("bitcode link", auto module = bitcode_link(paths, context));
 
     T_MEASURE("wasm assembly",
-            auto text = wasm_assembly(module.get(), context));
+            auto text = wasm_assembly(module.get(), opt, context));
 
     T_MEASURE("wasm link", auto linker = wasm_link(text));
 
     T_MEASURE("wasm write",
-            wasm_write(linker.get()->getOutput().wasm, "index.wasm"));
+            wasm_write(linker.get()->getOutput().wasm, output_path));
 
     T_PRINT("total", total);
 
