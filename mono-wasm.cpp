@@ -223,47 +223,53 @@ main(int argc, char **argv)
     std::vector<std::string> paths;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
-        if (strcmp(arg, "-o") == 0) {
-            i++;
-            if (i >= argc) {
-                fprintf(stderr, "expected value for `-o' option\n");
+        if (arg[0] == '-') {
+            if (arg[1] == 'o' && arg[2] == '\0') {
+                i++;
+                if (i >= argc) {
+                    fprintf(stderr, "expected value for `-o' option\n");
+                    exit(1);
+                }
+                output_path = argv[i];
+            }
+            else if (arg[1] == 's' && arg[2] == '\0') {
+                i++;
+                if (i >= argc) {
+                    fprintf(stderr, "expected value for `-s' option\n");
+                    exit(1);
+                }
+                stack_size = atoi(argv[i]);
+                if (stack_size <= 0) {
+                    fprintf(stderr, "`-s' value must be greater than zero\n");
+                    exit(1);
+                }
+            }
+            else if (arg[1] == 'g' && arg[2] == '\0') {
+                emit_debug = true;
+            }
+            else if (arg[1] == 'O' && arg[3] == '\0') {
+                switch (arg[2]) {
+                    case '0':
+                        opt = llvm::CodeGenOpt::None;
+                        break;
+                    case '1':
+                        opt = llvm::CodeGenOpt::Less;
+                        break;
+                    case '2':
+                        opt = llvm::CodeGenOpt::Default;
+                        break;
+                    case '3':
+                        opt = llvm::CodeGenOpt::Aggressive;
+                        break;
+                    default:
+                        fprintf(stderr, "malformed `-On' option\n");
+                        exit(1);
+                }
+            }
+            else {
+                fprintf(stderr, "invalid `%s' option\n", arg);
                 exit(1);
             }
-            output_path = argv[i];
-        }
-        else if (strcmp(arg, "-s") == 0) {
-            i++;
-            if (i >= argc) {
-                fprintf(stderr, "expected value for `-s' option\n");
-                exit(1);
-            }
-            stack_size = atoi(argv[i]);
-            if (stack_size <= 0) {
-                fprintf(stderr, "`-s' value should be greater than zero\n");
-                exit(1);
-            }
-        }
-        else if (strcmp(arg, "-g") == 0) {
-            emit_debug = true;
-        }
-        else if (arg[0] == '-' && arg[1] == 'O') {
-           switch (arg[2]) {
-               case '0':
-                   opt = llvm::CodeGenOpt::None;
-                   break;
-               case '1':
-                   opt = llvm::CodeGenOpt::Less;
-                   break;
-               case '2':
-                   opt = llvm::CodeGenOpt::Default;
-                   break;
-               case '3':
-                   opt = llvm::CodeGenOpt::Aggressive;
-                   break;
-               default:
-                   fprintf(stderr, "malformed `-On' option\n");
-                   exit(1);
-           }
         }
         else {
             paths.push_back(arg);
