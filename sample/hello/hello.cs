@@ -8,7 +8,7 @@ class Hello
         return n * factorial(n - 1);
     }
 
-    static int Main()
+    static int Main(string[] args)
     {
         int f = factorial(6);
         System.Console.WriteLine("Hello world! factorial(6) -> {0}", f);
