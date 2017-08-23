@@ -11,7 +11,7 @@ LIBC_CFLAGS = -fno-stack-protector -nostdinc -I$(LIBC_PATH)/include -I$(LIBC_PAT
 
 MONO_CFLAGS = $(LIBC_CFLAGS) -I$(MONO_RUNTIME_PATH) -I$(MONO_RUNTIME_PATH)/mono -I$(MONO_RUNTIME_PATH)/eglib/src -DHAVE_CONFIG_H -D_THREAD_SAFE -DUSE_MMAP -DUSE_MUNMAP -std=gnu99 -fwrapv -DMONO_DLL_EXPORT -Wno-unused-value -Wno-tautological-compare -Wno-bitwise-op-parentheses
 
-all: run
+all: dist-install
 
 build/libmini.bc: $(patsubst %, build/mini/%.bc, abcremoval alias-analysis aot-compiler aot-runtime branch-opts cfgdump cfold debug-mini debugger-agent decompose dominators driver dwarfwriter graph helpers image-writer jit-icalls linear-scan liveness lldb local-propagation memory-access method-to-ir mini-codegen mini-cross-helpers mini-wasm32 mini-exceptions mini-gc mini-generic-sharing mini-native-types mini-posix mini-runtime mini-trampolines mini seq-points simd-intrinsics ssa tasklets trace type-checking unwind xdebug)
 
@@ -63,11 +63,11 @@ mscorlib.dll:
 %.bc : %.dll mscorlib.dll
 	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER_PATH)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
 
-boot.bc:        boot.c
-	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o boot.bc
+build/boot.bc:        boot.c
+	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o build/boot.bc
 
-runtime.bc:     boot.bc build/libc.bc build/libmono.bc
-	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc boot.bc -o runtime.bc
+build/runtime.bc:     build/boot.bc build/libc.bc build/libmono.bc
+	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc build/boot.bc -o build/runtime.bc
 
 index.wasm:   hello.bc mscorlib.bc runtime.bc mono-wasm
 	./mono-wasm hello.bc mscorlib.bc runtime.bc -g -o index.wasm
@@ -76,13 +76,20 @@ missing.js: index.wast
 	(echo "var missing_functions = ["; grep "(import \"env\"" index.wast | grep -v global | awk '{ print $$3 }' | paste -s -d , -; echo "]") >& missing.js
 
 run:    index.wasm missing.js index.js
-	$(D8_PATH) --expose-wasm index.js
-
-BINARYEN_SRCS = $(BINARYEN_PATH)/src/wasm-linker.cpp
-BINARYEN_LIBS = $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ast cfg asmjs) 
 
 mono-wasm:      mono-wasm.cpp
-	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags --libs BitReader BitWriter Core IRReader Linker Object Support TransformUtils IPO webassembly) -std=c++1y -UNDEBUG -fexceptions -DNO_EMSCRIPTEN_GLUE -I$(BINARYEN_PATH)/src -g mono-wasm.cpp $(BINARYEN_SRCS) -o mono-wasm -lncurses -lz $(BINARYEN_LIBS)
+	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags --libs BitReader BitWriter Core IRReader Linker Object Support TransformUtils IPO webassembly) -Wno-gnu -std=c++1y -UNDEBUG -fexceptions -DNO_EMSCRIPTEN_GLUE -I$(BINARYEN_PATH)/src -g mono-wasm.cpp $(BINARYEN_PATH)/src/wasm-linker.cpp -o mono-wasm -lncurses -lz $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ast cfg asmjs)
+
+dist-install:   mono-wasm build/runtime.bc mscorlib.dll
+	rm -rf dist
+	mkdir -p dist/bin
+	cp mono-wasm dist/bin
+	cp $(MONO_COMPILER_PATH)/mono/mini/mono dist/bin/monoc
+	mkdir -p dist/lib
+	cp mscorlib.dll dist/lib
+	cp mscorlib.xml dist/lib
+	cp build/runtime.bc dist/lib
+	cp index.js dist/lib
 
 clean:
-	/bin/rm -rf build missing.js index.wasm index.wast index.s index.bc hello.bc hello.dll mscorlib.bc mscorlib.dll boot.bc mono-wasm
+	/bin/rm -rf build dist missing.js mscorlib.dll mono-wasm
