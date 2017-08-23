@@ -58,7 +58,7 @@ hello.dll:       hello.cs
 	mcs hello.cs -out:hello.dll
 
 mscorlib.dll:
-	cp $(MONO_COMPILER_PATH)/mcs/class/lib/basic/mscorlib.dll .
+	cp $(MONO_COMPILER_PATH)/mcs/class/lib/wasm/mscorlib.dll .
 
 %.bc : %.dll mscorlib.dll
 	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER_PATH)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
