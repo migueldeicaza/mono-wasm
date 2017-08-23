@@ -3,7 +3,6 @@ MONO_COMPILER_PATH = ../mono-compiler
 LIBC_PATH = ../libc
 LLVM_PATH = ../llvm-build
 BINARYEN_PATH = ../binaryen
-D8_PATH = ../../wasm-install/bin/d8
 
 CLANG = $(LLVM_PATH)/bin/clang
 
@@ -54,28 +53,14 @@ build/eglib/%.bc : $(MONO_RUNTIME_PATH)/eglib/src/%.c
 	@/bin/mkdir -p $(dir $@)
 	$(CLANG) $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
-hello.dll:       hello.cs
-	mcs hello.cs -out:hello.dll
-
 mscorlib.dll:
 	cp $(MONO_COMPILER_PATH)/mcs/class/lib/wasm/mscorlib.dll .
-
-%.bc : %.dll mscorlib.dll
-	MONO_PATH=. MONO_ENABLE_COOP=1 $(MONO_COMPILER_PATH)/mono/mini/mono --aot=asmonly,llvmonly,static,llvm-outfile=$@ $<
 
 build/boot.bc:        boot.c
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o build/boot.bc
 
 build/runtime.bc:     build/boot.bc build/libc.bc build/libmono.bc
 	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc build/boot.bc -o build/runtime.bc
-
-index.wasm:   hello.bc mscorlib.bc runtime.bc mono-wasm
-	./mono-wasm hello.bc mscorlib.bc runtime.bc -g -o index.wasm
-
-missing.js: index.wast
-	(echo "var missing_functions = ["; grep "(import \"env\"" index.wast | grep -v global | awk '{ print $$3 }' | paste -s -d , -; echo "]") >& missing.js
-
-run:    index.wasm missing.js index.js
 
 mono-wasm:      mono-wasm.cpp
 	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags --libs BitReader BitWriter Core IRReader Linker Object Support TransformUtils IPO webassembly) -Wno-gnu -std=c++1y -UNDEBUG -fexceptions -DNO_EMSCRIPTEN_GLUE -I$(BINARYEN_PATH)/src -g mono-wasm.cpp $(BINARYEN_PATH)/src/wasm-linker.cpp -o mono-wasm -lncurses -lz $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ast cfg asmjs)
