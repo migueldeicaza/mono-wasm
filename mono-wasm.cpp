@@ -245,6 +245,44 @@ bitcode_link(std::vector<std::string> &paths, llvm::LLVMContext &context)
     return module;
 }
 
+static void
+aot_init_gen(std::vector<std::string> &assembly_paths, llvm::Module *module,
+        llvm::LLVMContext &context)
+{
+    auto register_f = module->getFunction("mono_aot_register_module");
+    assert(register_f != NULL);
+
+    auto c = module->getOrInsertFunction("mono_wasm_aot_init",
+            llvm::FunctionType::get(llvm::Type::getVoidTy(context), false));
+    auto f = llvm::cast<llvm::Function>(c);
+    auto bb = llvm::BasicBlock::Create(context, "entry", f);
+
+    for (auto path : assembly_paths) {
+        // /<build-dir>/foo.{exe,dll} -> mono_aot_module_foo_info
+        assert(path.size() > 4);
+        assert(path[path.size() - 4] == '.');
+        size_t beg = path.rfind('/');
+        assert(beg != std::string::npos);
+        beg++;
+
+        auto name = std::string("mono_aot_module_")
+            + path.substr(beg, path.size() - beg - 4) + "_info";
+
+        auto aot_info = module->getGlobalVariable(name.c_str());
+        if (aot_info == NULL) {
+            fprintf(stderr,
+                    "can't find aot module info variable `%s' " \
+                    "for assembly `%s'\n", name.c_str(), path.c_str());
+            exit(1);
+        }
+
+        llvm::CallInst::Create(register_f,
+                new llvm::LoadInst(aot_info, "", bb), "", bb);
+    }
+
+    llvm::ReturnInst::Create(context, bb);
+}
+
 class malloc_ostream : public llvm::raw_pwrite_stream {
     char *memory;
     size_t cap;
@@ -572,6 +610,8 @@ main(int argc, char **argv)
 
     T_MEASURE("bitcode link",
             auto module = bitcode_link(bitcode_paths, context));
+
+    aot_init_gen(assembly_paths, module.get(), context);
 
     T_MEASURE("wasm assembly",
             auto text = wasm_assembly(module.get(), opt, context));
