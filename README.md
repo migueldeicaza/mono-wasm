@@ -211,3 +211,7 @@ TODO (later):
 * work on patches for mono based on the changes made in the fork
 * merge the WebAssembly LLVM code into the mono/llvm fork so that the compiler can target wasm32
 * investigate threads, sockets, debugger, stack unwinding, simd and atomic operations, etc.
+
+## License
+
+This work is distributed under the terms of the MIT license. See the LICENSE.txt file for more information.

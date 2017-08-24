@@ -1,3 +1,7 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See the LICENSE.txt file in the project root
+// for the license information.
+
 // JavaScript WASM support for libc+mono. Inspired from WebAssembly/musl's
 // wasm.js file.
 

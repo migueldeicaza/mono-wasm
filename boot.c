@@ -1,3 +1,7 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See the LICENSE.txt file in the project root
+// for the license information.
+
 #include <mono/mini/mini.h>
 #include <mono/metadata/assembly.h>
 #include <locale.h>
