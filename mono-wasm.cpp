@@ -383,6 +383,74 @@ assembly_strip(std::vector<std::string> &paths, const char *output_path)
     }
 }
 
+extern "C" {
+    extern FILE *jsmin_in;
+    extern FILE *jsmin_out;
+    void jsmin(void);
+}
+
+static void
+js_gen(wasm::Module &wasm, std::vector<std::string> &assembly_paths,
+        const char *output_path)
+{
+    std::vector<std::string> missing_functions, missing_globals;
+    for (auto &import : wasm.imports) {
+        const char *name = import->name.c_str();
+        switch (import->kind) {
+            case wasm::ExternalKind::Function:
+                missing_functions.push_back(name);
+                break;
+
+            case wasm::ExternalKind::Global:
+                missing_globals.push_back(name);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    auto index_js = std::string(libdir_path) + "/index.js";
+    FILE_MUST_EXIST(index_js.c_str());
+
+    auto output_index_js = std::string(output_path) + "/index.js";
+    FILE *output = fopen(output_index_js.c_str(), "w+");
+    if (output == NULL) {
+        fprintf(stderr, "can't open `%s': %s\n", output_index_js.c_str(),
+                strerror(errno));
+        exit(1);
+    }
+
+    fprintf(output, "var missing_functions=[");
+    for (auto name : missing_functions) {
+        fprintf(output, "\"%s\",", name.c_str());
+    }
+
+    fprintf(output, "];var missing_globals=[");
+    for (auto name : missing_globals) {
+        fprintf(output, "\"%s\",", name.c_str());
+    }
+
+    fprintf(output, "];var files=[");
+    for (auto path : assembly_paths) {
+        const char *base = strrchr(path.c_str(), '/');
+        assert(base != NULL);
+        fprintf(output, "\"%s\",", base + 1);
+    }
+    fprintf(output, "];");
+
+    jsmin_in = fopen(index_js.c_str(), "r");
+    jsmin_out = output;
+
+    jsmin();
+
+    fclose(jsmin_in);
+    fclose(output);
+
+    jsmin_in = NULL;
+    jsmin_out = NULL;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -516,6 +584,10 @@ main(int argc, char **argv)
 
     T_MEASURE("IL strip",
             assembly_strip(assembly_paths, output_path));
+
+    T_MEASURE("JS gen",
+            js_gen(linker.get()->getOutput().wasm, assembly_paths,
+                output_path));
 
     T_PRINT("total", total);
 
