@@ -205,9 +205,15 @@ TODO (now):
 
 TODO (later):
 
+* the entire bitcode module -> wasm assembly takes most of the time, we should split it into different modules (per assemblies) and link at the wasm level
+* put mscorlib on a diet (currently 'hello world' is 10MB) by removing more functionality within the `wasm.make` profile and doing more aggressive IL linking
 * work on patches for mono based on the changes made in the fork
-* merge the WebAssembly LLVM code into the mono/llvm fork so that the compiler can target wasm32
-* investigate threads, sockets, debugger, stack unwinding, simd and atomic operations, etc.
+* merge the WebAssembly LLVM code into the mono/llvm fork so that the Mono compiler can target wasm32 directly, and that we can merge the code into `mono-wasm` (we won't have to ship the Mono compiler separately as `monoc`)
+* investigate: threads, sockets, debugger, stack unwinding, simd and atomic operations, etc.
+
+TODO (even later):
+
+* mono should generate wasm directly (both for AOT and JIT codegen)
 
 ## License
 
