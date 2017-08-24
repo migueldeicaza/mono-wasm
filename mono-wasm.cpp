@@ -46,20 +46,25 @@
 #include "wasm-binary.h"
 #include "support/file.h"
 
+#define ERROR(...) \
+    do { \
+        fprintf(stderr, __VA_ARGS__); \
+        exit(1); \
+    } \
+    while (0)
+
 #define _PATH_CHECK(path, iftype, what, must_exist) \
     ({ \
         struct stat s; \
         bool exists = false; \
         if (stat(path, &s) != 0) { \
             if (must_exist) { \
-                fprintf(stderr, "path `%s' does not exist\n", path); \
-                exit(1); \
+                ERROR("path `%s' does not exist\n", path); \
             } \
         } \
         else { \
             if ((s.st_mode & S_IFMT) != iftype) { \
-                fprintf(stderr, "path `%s' is not a %s\n", path, what); \
-                exit(1); \
+                ERROR("path `%s' is not a %s\n", path, what); \
             } \
             exists = true; \
         } \
@@ -104,15 +109,13 @@ setup_paths(const char *arg0)
     char path[PATH_MAX];
     snprintf(path, sizeof path, "%s/../../lib", arg0);
     if (realpath(path, libdir_path) == NULL) {
-        fprintf(stderr, "can't resolve `lib' directory\n");
-        exit(1);
+        ERROR("can't resolve `lib' directory\n");
     }
     DIR_MUST_EXIST(libdir_path);
 
     snprintf(path, sizeof path, "%s/..", arg0);
     if (realpath(path, bindir_path) == NULL) {
-        fprintf(stderr, "can't resolve `bin' directory\n");
-        exit(1);
+        ERROR("can't resolve `bin' directory\n");
     }
     DIR_MUST_EXIST(bindir_path);
 }
@@ -166,8 +169,7 @@ assembly_link(std::vector<std::string> &assembly_paths,
     }
 
     if (system(cmd) != 0) {
-        fprintf(stderr, "monolinker pass failed (command was: %s)\n", cmd);
-        exit(1);
+        ERROR("monolinker pass failed (command was: %s)\n", cmd);
     }
 
 skip_link:
@@ -213,9 +215,8 @@ assembly_compile(std::vector<std::string> &assembly_paths,
                     assembly_path.c_str());
 
             if (system(cmd) != 0) {
-                fprintf(stderr, "bitcode compilation for `%s' failed " \
+                ERROR("bitcode compilation for `%s' failed " \
                         "(command was: %s)\n", assembly_path.c_str(), cmd);
-                exit(1);
             }
         }
 
@@ -235,14 +236,14 @@ bitcode_link(std::vector<std::string> &paths, llvm::LLVMContext &context)
         llvm::SMDiagnostic err;
         auto file_module = llvm::parseIRFile(path, err, context);
         if (!file_module) {
-            err.print(path.c_str(), llvm::errs());
-            exit(1);
+            ERROR("bitcode parsing error: %s:%d: %s\n",
+                    err.getFilename().str().c_str(), err.getLineNo(),
+                    err.getMessage().str().c_str());
         }
 
         if (linker.linkInModule(std::move(file_module),
                     llvm::Linker::Flags::OverrideFromSrc)) {
-            fprintf(stderr, "linking %s failed\n", path.c_str());
-            exit(1);
+            ERROR("linking %s failed\n", path.c_str());
         }
     }
 
@@ -274,10 +275,8 @@ aot_init_gen(std::vector<std::string> &assembly_paths, llvm::Module *module,
 
         auto aot_info = module->getGlobalVariable(name.c_str());
         if (aot_info == NULL) {
-            fprintf(stderr,
-                    "can't find aot module info variable `%s' " \
+            ERROR("can't find aot module info variable `%s' " \
                     "for assembly `%s'\n", name.c_str(), path.c_str());
-            exit(1);
         }
 
         llvm::CallInst::Create(register_f,
@@ -297,6 +296,7 @@ class malloc_ostream : public llvm::raw_pwrite_stream {
             size_t new_cap = pos + size + (cap / 2);
             memory = (char *)realloc(memory, new_cap);
             assert(memory != NULL);
+            cap = new_cap;
         }
         memcpy(memory + pos, ptr, size);
         pos += size;
@@ -342,8 +342,7 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
     auto triple = llvm::Triple(module->getTargetTriple());
     auto target = llvm::TargetRegistry::lookupTarget("wasm32", triple, err);
     if (target == NULL) {
-        llvm::errs() << err;
-        exit(1);
+        ERROR("can't lookup wasm32 target: %s\n", err.c_str());
     }
 
     std::string cpu_str = "";
@@ -356,8 +355,7 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
             llvm::CodeModel::Default, opt_level);
 
     if (target_machine == NULL) {
-        fprintf(stderr, "couldn't allocate target machine\n");
-        exit(1);
+        ERROR("couldn't allocate target machine\n");
     }
 
     llvm::legacy::PassManager pm;
@@ -370,8 +368,7 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
 
     if (target_machine->addPassesToEmitFile(pm, stream,
                 llvm::TargetMachine::CGFT_AssemblyFile)) {
-        llvm::errs() << "target does not support assembly generation\n";
-        exit(1);
+        ERROR("target does not support assembly generation\n");
     }
 
     pm.run(*module);
@@ -418,9 +415,8 @@ assembly_strip(std::vector<std::string> &paths, const char *output_path)
                 path.c_str(), output_path, base);
 
         if (system(cmd) != 0) {
-            fprintf(stderr, "IL strip for `%s' failed (command was: %s)\n",
+            ERROR("IL strip for `%s' failed (command was: %s)\n",
                     path.c_str(), cmd);
-            exit(1);
         }
     }
 }
@@ -458,9 +454,8 @@ js_gen(wasm::Module &wasm, std::vector<std::string> &assembly_paths,
     auto output_index_js = std::string(output_path) + "/index.js";
     FILE *output = fopen(output_index_js.c_str(), "w+");
     if (output == NULL) {
-        fprintf(stderr, "can't open `%s': %s\n", output_index_js.c_str(),
+        ERROR("can't open `%s': %s\n", output_index_js.c_str(),
                 strerror(errno));
-        exit(1);
     }
 
     fprintf(output, "var missing_functions=[");
@@ -497,8 +492,7 @@ int
 main(int argc, char **argv)
 {
     if (argc < 2) {
-        fprintf(stderr,
-                "Usage: %s [options] <input files>\n\n" \
+        ERROR("Usage: %s [options] <input files>\n\n" \
                 "Options:\n" \
                 "    -o <directory>        - Output directory\n" \
                 "    -On                   - Specify optimization level\n" \
@@ -507,7 +501,6 @@ main(int argc, char **argv)
                 "    -s <size>             - Specify stack size in bytes\n" \
                 "                            (default is 2M)\n",
                 argv[0]);
-        exit(1);
     }
 
     const char *output_path = NULL;
@@ -521,21 +514,18 @@ main(int argc, char **argv)
             if (arg[1] == 'o' && arg[2] == '\0') {
                 i++;
                 if (i >= argc) {
-                    fprintf(stderr, "expected value for `-o' option\n");
-                    exit(1);
+                    ERROR("expected value for `-o' option\n");
                 }
                 output_path = argv[i];
             }
             else if (arg[1] == 's' && arg[2] == '\0') {
                 i++;
                 if (i >= argc) {
-                    fprintf(stderr, "expected value for `-s' option\n");
-                    exit(1);
+                    ERROR("expected value for `-s' option\n");
                 }
                 stack_size = atoi(argv[i]);
                 if (stack_size <= 0) {
-                    fprintf(stderr, "`-s' value must be greater than zero\n");
-                    exit(1);
+                    ERROR("`-s' value must be greater than zero\n");
                 }
             }
             else if (arg[1] == 'g' && arg[2] == '\0') {
@@ -556,13 +546,11 @@ main(int argc, char **argv)
                         opt = llvm::CodeGenOpt::Aggressive;
                         break;
                     default:
-                        fprintf(stderr, "malformed `-On' option\n");
-                        exit(1);
+                        ERROR("malformed `-On' option\n");
                 }
             }
             else {
-                fprintf(stderr, "invalid `%s' option\n", arg);
-                exit(1);
+                ERROR("invalid `%s' option\n", arg);
             }
         }
         else {
@@ -570,21 +558,18 @@ main(int argc, char **argv)
         }
     }
     if (output_path == NULL) {
-        fprintf(stderr, "`-o' option required\n");
-        exit(1);
+        ERROR("`-o' option required\n");
     }
     if (assembly_paths.size() == 0) {
-        fprintf(stderr, "at least one input file is required\n");
-        exit(1);
+        ERROR("at least one input file is required\n");
     }
 
     setup_paths(argv[0]);
 
     if (!DIR_MAY_EXIST(output_path)) {
         if (mkdir(output_path, 0755) != 0) {
-            fprintf(stderr, "can't create output directory `%s': %s\n",
+            ERROR("can't create output directory `%s': %s\n",
                     output_path, strerror(errno));
-            exit(1);
         }
     }
 
