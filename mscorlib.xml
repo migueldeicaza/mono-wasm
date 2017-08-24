@@ -1,0 +1,4 @@
+<linker>
+  <assembly fullname="mscorlib">
+  </assembly>
+</linker>
