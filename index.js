@@ -545,11 +545,13 @@ function run_wasm_code() {
   
   if (dump_cross_offsets) {
     // We don't care about freeing the memory as we exit soon after.
-    instance.exports.setenv(heap_malloc_string('DUMP_CROSS_OFFSETS'), heap_malloc_string('1'), 1)
+    instance.exports.setenv(heap_malloc_string('DUMP_CROSS_OFFSETS'),
+            heap_malloc_string('1'), 1)
   }
-  
+ 
   debug("running main()")
-  var ret = instance.exports.main();
+  var ret = instance.exports.mono_wasm_main(heap_malloc_string(files[0]),
+          debug_logs);
   debug('main() returned: ' + ret);
 }
 
