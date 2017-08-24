@@ -72,6 +72,25 @@
 #define DIR_MUST_EXIST(path) _DIR_CHECK(path, true)
 #define DIR_MAY_EXIST(path) _DIR_CHECK(path, false)
 
+static int
+timespec_cmp (struct timespec a, struct timespec b)
+{
+    return a.tv_sec < b.tv_sec
+        ? -1
+        : (a.tv_sec > b.tv_sec
+                ? 1 : a.tv_nsec - b.tv_nsec);
+}
+
+#define FILE_IS_OLDER(source_path, dest_path) \
+    ({ \
+        struct stat source_s; \
+        assert(stat(source_path, &source_s) == 0); \
+        struct stat dest_s; \
+        stat(dest_path, &dest_s) == 0 \
+            ? timespec_cmp(source_s.st_mtimespec, dest_s.st_mtimespec) > 0 \
+            : true; \
+    })
+
 static char libdir_path[PATH_MAX] = { 0 };
 static char bindir_path[PATH_MAX] = { 0 };
 
@@ -117,7 +136,21 @@ static void
 assembly_link(std::vector<std::string> &assembly_paths,
         const char *output_path)
 {
-    DIR_MAY_EXIST(output_path);
+    auto dest_base = std::string(output_path) + "/";
+
+    if (DIR_MAY_EXIST(output_path)) {
+        bool need_link = false;
+        for (auto assembly_path : assembly_paths) {
+            auto linked_path = dest_base + assembly_path;
+            if (FILE_IS_OLDER(assembly_path.c_str(), linked_path.c_str())) {
+                need_link = true;
+                break;
+            }
+        }
+        if (!need_link) {
+            goto skip_link;
+        }
+    }
 
     char cmd[PATH_MAX];
     snprintf(cmd, sizeof cmd, "monolinker -d %s -c link -l none -o %s",
@@ -133,6 +166,7 @@ assembly_link(std::vector<std::string> &assembly_paths,
         exit(1);
     }
 
+skip_link:
     assembly_paths.clear();
     DIR *dir = opendir(output_path);
     assert(dir != NULL);
@@ -143,9 +177,8 @@ assembly_link(std::vector<std::string> &assembly_paths,
         if (sl > 4) {
             const char *sp = s + sl - 4;
             if (strcmp(sp, ".exe") == 0 || strcmp(sp, ".dll") == 0) {
-                char path[PATH_MAX];
-                snprintf(path, sizeof path, "%s/%s", output_path, s);
-                assembly_paths.push_back(path); 
+                auto linked_path = dest_base + s;
+                assembly_paths.push_back(linked_path); 
             }
         }
     }
@@ -166,18 +199,20 @@ assembly_compile(std::vector<std::string> &assembly_paths,
     for (auto assembly_path : assembly_paths) {
         std::string bitcode_path = assembly_path + ".bc";
 
-        char cmd[PATH_MAX];
-        snprintf(cmd, sizeof cmd,
-                "MONO_PATH=\"%s\" MONO_ENABLE_COOP=1 " \
-                "%s --aot=asmonly,llvmonly,static,llvm-outfile=%s %s " \
-                ">& /dev/null",
-                build_dir, monoc_path, bitcode_path.c_str(),
-                assembly_path.c_str());
+        if (FILE_IS_OLDER(assembly_path.c_str(), bitcode_path.c_str())) {
+            char cmd[PATH_MAX];
+            snprintf(cmd, sizeof cmd,
+                    "MONO_PATH=\"%s\" MONO_ENABLE_COOP=1 " \
+                    "%s --aot=asmonly,llvmonly,static,llvm-outfile=%s %s " \
+                    ">& /dev/null",
+                    build_dir, monoc_path, bitcode_path.c_str(),
+                    assembly_path.c_str());
 
-        if (system(cmd) != 0) {
-            fprintf(stderr, "bitcode compilation for `%s' failed " \
-                    "(command was: %s)\n", assembly_path.c_str(), cmd);
-            exit(1);
+            if (system(cmd) != 0) {
+                fprintf(stderr, "bitcode compilation for `%s' failed " \
+                        "(command was: %s)\n", assembly_path.c_str(), cmd);
+                exit(1);
+            }
         }
 
         bitcode_paths.push_back(bitcode_path);
