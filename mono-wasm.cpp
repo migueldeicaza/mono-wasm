@@ -494,7 +494,9 @@ main(int argc, char **argv)
     if (argc < 2) {
         ERROR("Usage: %s [options] <input files>\n\n" \
                 "Options:\n" \
-                "    -o <directory>        - Output directory\n" \
+                "    -b <directory>        - Specify build directory\n" \
+                "                            (default is `./build')\n" \
+                "    -o <directory>        - Specify output directory\n" \
                 "    -On                   - Specify optimization level\n" \
                 "                            (0, 1, 2, 3, default is 2)\n" \
                 "    -g                    - Emit debug information\n" \
@@ -503,6 +505,7 @@ main(int argc, char **argv)
                 argv[0]);
     }
 
+    const char *build_path = "./build";
     const char *output_path = NULL;
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
     bool emit_debug = false;
@@ -511,7 +514,14 @@ main(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (arg[0] == '-') {
-            if (arg[1] == 'o' && arg[2] == '\0') {
+            if (arg[1] == 'b' && arg[2] == '\0') {
+                i++;
+                if (i >= argc) {
+                    ERROR("expected value for `-b' option\n");
+                }
+                build_path = argv[i];
+            }
+            else if (arg[1] == 'o' && arg[2] == '\0') {
                 i++;
                 if (i >= argc) {
                     ERROR("expected value for `-o' option\n");
@@ -592,10 +602,10 @@ main(int argc, char **argv)
     total += delta; \
     T_PRINT(what, delta)
 
-    T_MEASURE("IL link", assembly_link(assembly_paths, "build"));
+    T_MEASURE("IL link", assembly_link(assembly_paths, build_path));
 
     T_MEASURE("IL compile",
-            assembly_compile(assembly_paths, bitcode_paths, "build"));
+            assembly_compile(assembly_paths, bitcode_paths, build_path));
 
     T_MEASURE("bitcode link",
             auto module = bitcode_link(bitcode_paths, context));
