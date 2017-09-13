@@ -352,7 +352,7 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
 
     auto target_machine = target->createTargetMachine(triple.getTriple(),
             cpu_str, features_str, options, llvm::None,
-            llvm::CodeModel::Default, opt_level);
+            llvm::CodeModel::Large, opt_level);
 
     if (target_machine == NULL) {
         ERROR("couldn't allocate target machine\n");
