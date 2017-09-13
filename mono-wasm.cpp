@@ -501,7 +501,8 @@ main(int argc, char **argv)
                 "                            (0, 1, 2, 3, default is 2)\n" \
                 "    -g                    - Emit debug information\n" \
                 "    -s <size>             - Specify stack size in bytes\n" \
-                "                            (default is 2M)\n",
+                "                            (default is 2M)\n" \
+                "    -v                    - Verbose output\n",
                 argv[0]);
     }
 
@@ -509,6 +510,7 @@ main(int argc, char **argv)
     const char *output_path = NULL;
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
     bool emit_debug = false;
+    bool verbose = false;
     size_t stack_size = 1024 * 1000 * 2;
     std::vector<std::string> assembly_paths, bitcode_paths;
     for (int i = 1; i < argc; i++) {
@@ -540,6 +542,9 @@ main(int argc, char **argv)
             }
             else if (arg[1] == 'g' && arg[2] == '\0') {
                 emit_debug = true;
+            }
+            else if (arg[1] == 'v' && arg[2] == '\0') {
+                verbose = true;
             }
             else if (arg[1] == 'O' && arg[3] == '\0') {
                 switch (arg[2]) {
@@ -591,9 +596,11 @@ main(int argc, char **argv)
     mach_timebase_info(&timebase_info);
 
 #define T_PRINT(what, delta) \
-    printf("%15s : %.3fs\n", what, \
-            (((double)(delta) * timebase_info.numer) \
-             / (timebase_info.denom * 1000000000)))
+    if (verbose) { \
+        printf("%15s : %.3fs\n", what, \
+                (((double)(delta) * timebase_info.numer) \
+                 / (timebase_info.denom * 1000000000))); \
+    }
 
 #define T_MEASURE(what, code) \
     start = mach_absolute_time(); \
