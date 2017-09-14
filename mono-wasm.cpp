@@ -191,39 +191,33 @@ skip_link:
     closedir(dir);
 }
 
-static void
-assembly_compile(std::vector<std::string> &assembly_paths,
-        std::vector<std::string> &bitcode_paths, const char *build_dir)
+static std::string
+assembly_compile(std::string &assembly_path, const char *build_dir)
 {
-    assert(assembly_paths.size() > 0);
-    assert(bitcode_paths.size() == 0);
-
-    char monoc_path[PATH_MAX];
-    snprintf(monoc_path, sizeof monoc_path, "%s/monoc", bindir_path);
-    FILE_MUST_EXIST(monoc_path);
-
-    for (auto assembly_path : assembly_paths) {
-        std::string bitcode_path = assembly_path + ".bc";
-
-        if (FILE_IS_OLDER(assembly_path.c_str(), bitcode_path.c_str())) {
-            char cmd[PATH_MAX];
-            snprintf(cmd, sizeof cmd,
-                    "MONO_PATH=\"%s\" MONO_ENABLE_COOP=1 " \
-                    "%s --aot=asmonly,llvmonly,static,llvm-outfile=%s %s " \
-                    ">& /dev/null",
-                    build_dir, monoc_path, bitcode_path.c_str(),
-                    assembly_path.c_str());
-
-            if (system(cmd) != 0) {
-                ERROR("bitcode compilation for `%s' failed " \
-                        "(command was: %s)\n", assembly_path.c_str(), cmd);
-            }
-        }
-
-        bitcode_paths.push_back(bitcode_path);
+    static char monoc_path[PATH_MAX] = { '\0' };
+    if (monoc_path[0] == '\0') {
+        snprintf(monoc_path, sizeof monoc_path, "%s/monoc", bindir_path);
+        FILE_MUST_EXIST(monoc_path);
     }
 
-    bitcode_paths.push_back(std::string(libdir_path) + "/runtime.bc");
+    std::string bitcode_path = assembly_path + ".bc";
+
+    if (FILE_IS_OLDER(assembly_path.c_str(), bitcode_path.c_str())) {
+        char cmd[PATH_MAX];
+        snprintf(cmd, sizeof cmd,
+                "MONO_PATH=\"%s\" MONO_ENABLE_COOP=1 " \
+                "%s --aot=asmonly,llvmonly,static,llvm-outfile=%s %s " \
+                ">& /dev/null",
+                build_dir, monoc_path, bitcode_path.c_str(),
+                assembly_path.c_str());
+
+        if (system(cmd) != 0) {
+            ERROR("bitcode compilation for `%s' failed " \
+                    "(command was: %s)\n", assembly_path.c_str(), cmd);
+        }
+    }
+
+    return bitcode_path;
 }
 
 static std::unique_ptr<llvm::Module>
@@ -250,12 +244,25 @@ bitcode_link(std::vector<std::string> &paths, llvm::LLVMContext &context)
     return module;
 }
 
-static void
+static llvm::Module *
 aot_init_gen(std::vector<std::string> &assembly_paths, llvm::Module *module,
         llvm::LLVMContext &context)
 {
+    if (module == NULL) {
+        module = new llvm::Module("aot_init.bc", context);
+    }
+
+    auto ptr_ty = llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(context));
+
     auto register_f = module->getFunction("mono_aot_register_module");
-    assert(register_f != NULL);
+    if (register_f == NULL) {
+        std::vector<llvm::Type *> types;
+        types.push_back(ptr_ty);
+        auto c = module->getOrInsertFunction("mono_aot_register_module",
+                llvm::FunctionType::get(llvm::Type::getVoidTy(context),
+                    types, false));
+        register_f = llvm::cast<llvm::Function>(c);
+    }
 
     auto c = module->getOrInsertFunction("mono_wasm_aot_init",
             llvm::FunctionType::get(llvm::Type::getVoidTy(context), false));
@@ -275,8 +282,8 @@ aot_init_gen(std::vector<std::string> &assembly_paths, llvm::Module *module,
 
         auto aot_info = module->getGlobalVariable(name.c_str());
         if (aot_info == NULL) {
-            ERROR("can't find aot module info variable `%s' " \
-                    "for assembly `%s'\n", name.c_str(), path.c_str());
+            auto c = module->getOrInsertGlobal(name.c_str(), ptr_ty);
+            aot_info = llvm::cast<llvm::GlobalVariable>(c);
         }
 
         llvm::CallInst::Create(register_f,
@@ -284,6 +291,8 @@ aot_init_gen(std::vector<std::string> &assembly_paths, llvm::Module *module,
     }
 
     llvm::ReturnInst::Create(context, bb);
+
+    return module;
 }
 
 class malloc_ostream : public llvm::raw_pwrite_stream {
@@ -320,7 +329,7 @@ public:
         SetUnbuffered();
     }
 
-    char *buffer() { 
+    char *buffer() {
         return memory;
     }
 
@@ -377,12 +386,12 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
 }
 
 static std::unique_ptr<wasm::Linker>
-wasm_link(const char *text, size_t stack_size)
+wasm_link(const char *text, size_t stack_size, bool import_memory)
 {
     wasm::S2WasmBuilder builder(text, false);
 
-    auto linker = std::make_unique<wasm::Linker>(0, stack_size, 0, 0, false,
-            false, "", false);
+    auto linker = std::make_unique<wasm::Linker>(0, stack_size, 0, 0,
+            import_memory, false, "", false);
     linker->linkObject(builder);
     linker->layout();
 
@@ -390,7 +399,7 @@ wasm_link(const char *text, size_t stack_size)
 }
 
 static void
-wasm_write(wasm::Module &wasm, bool debug_names, const char *output_path)
+wasm_write(wasm::Module &wasm, bool debug_names, std::string output_path)
 {
     wasm::BufferWithRandomAccess buffer(false);
 
@@ -398,9 +407,42 @@ wasm_write(wasm::Module &wasm, bool debug_names, const char *output_path)
     writer.setNamesSection(debug_names);
     writer.write();
 
-    auto path = std::string(output_path) + "/index.wasm";
-    wasm::Output output(path, wasm::Flags::Binary, wasm::Flags::Release);
+    wasm::Output output(output_path, wasm::Flags::Binary,
+            wasm::Flags::Release);
     buffer.writeTo(output);
+}
+
+static void
+bitcode_module_compile(llvm::Module *mod, llvm::CodeGenOpt::Level opt,
+        size_t stack_size, bool import_memory, bool emit_debug,
+        llvm::LLVMContext &context, std::string wasm_path)
+{
+    auto text = wasm_assembly(mod, opt, context);
+    auto linker = wasm_link(text, stack_size, true);
+    wasm_write(linker.get()->getOutput().wasm, emit_debug, wasm_path);
+}
+
+static std::string
+bitcode_compile(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
+        size_t stack_size, bool import_memory, bool emit_debug,
+        llvm::LLVMContext &context)
+{
+    auto wasm_path = bitcode_path + ".wasm";
+
+    if (FILE_IS_OLDER(bitcode_path.c_str(), wasm_path.c_str())) {
+        llvm::SMDiagnostic err;
+        auto module = llvm::parseIRFile(bitcode_path, err, context);
+        if (!module) {
+            ERROR("parsing bitcode file `%s' failed: %s:%d: %s\n",
+                    bitcode_path.c_str(), err.getFilename().str().c_str(),
+                    err.getLineNo(), err.getMessage().str().c_str());
+        }
+
+        bitcode_module_compile(module.get(), opt, stack_size, import_memory,
+                emit_debug, context, wasm_path);
+    }
+
+    return wasm_path;
 }
 
 static void
@@ -494,15 +536,16 @@ main(int argc, char **argv)
     if (argc < 2) {
         ERROR("Usage: %s [options] <input files>\n\n" \
                 "Options:\n" \
-                "    -b <directory>        - Specify build directory\n" \
-                "                            (default is `./build')\n" \
-                "    -o <directory>        - Specify output directory\n" \
-                "    -On                   - Specify optimization level\n" \
-                "                            (0, 1, 2, 3, default is 2)\n" \
-                "    -g                    - Emit debug information\n" \
-                "    -s <size>             - Specify stack size in bytes\n" \
-                "                            (default is 2M)\n" \
-                "    -v                    - Verbose output\n",
+                "    -b <directory>        Specify build directory\n" \
+                "                          (default is `./build')\n" \
+                "    -o <directory>        Specify output directory\n" \
+                "    -On                   Specify optimization level\n" \
+                "                          (0, 1, 2, 3, default is 2)\n" \
+                "    -g                    Emit debug information\n" \
+                "    -s <size>             Specify stack size in bytes\n" \
+                "                          (default is 2M)\n" \
+                "    -v                    Verbose output\n" \
+                "    -i                    Incremental build (experimental)\n",
                 argv[0]);
     }
 
@@ -511,8 +554,9 @@ main(int argc, char **argv)
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
     bool emit_debug = false;
     bool verbose = false;
+    bool incremental = false;
     size_t stack_size = 1024 * 1000 * 2;
-    std::vector<std::string> assembly_paths, bitcode_paths;
+    std::vector<std::string> assembly_paths, bitcode_paths, wasm_paths;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (arg[0] == '-') {
@@ -545,6 +589,9 @@ main(int argc, char **argv)
             }
             else if (arg[1] == 'v' && arg[2] == '\0') {
                 verbose = true;
+            }
+            else if (arg[1] == 'i' && arg[2] == '\0') {
+                incremental = true;
             }
             else if (arg[1] == 'O' && arg[3] == '\0') {
                 switch (arg[2]) {
@@ -611,29 +658,53 @@ main(int argc, char **argv)
 
     T_MEASURE("IL link", assembly_link(assembly_paths, build_path));
 
-    T_MEASURE("IL compile",
-            assembly_compile(assembly_paths, bitcode_paths, build_path));
+    bitcode_paths.push_back(std::string(libdir_path) + "/runtime.bc");
+    for (auto assembly_path : assembly_paths) {
+        T_MEASURE(assembly_path.c_str(),
+                auto bitcode_path = assembly_compile(assembly_path,
+                    build_path));
+        bitcode_paths.push_back(bitcode_path);
+    }
 
-    T_MEASURE("bitcode link",
-            auto module = bitcode_link(bitcode_paths, context));
+    if (incremental) {
+        fprintf(stderr, "Warning: incremental build isn't functional yet.\n");
 
-    aot_init_gen(assembly_paths, module.get(), context);
+        bool first_module = true;
+        for (auto bitcode_path : bitcode_paths) {
+            T_MEASURE(bitcode_path.c_str(),
+                    bitcode_compile(bitcode_path, opt, stack_size,
+                        !first_module, emit_debug, context));
+            first_module = false;
+        }
 
-    T_MEASURE("wasm assembly",
-            auto text = wasm_assembly(module.get(), opt, context));
+        auto aot_init_mod = aot_init_gen(assembly_paths, NULL, context);
+        bitcode_module_compile(aot_init_mod, opt, stack_size, true, emit_debug,
+                context, std::string(build_path) + "/aot_init.wasm");
+        delete aot_init_mod;
+    }
+    else {
+        T_MEASURE("bitcode link",
+                auto module = bitcode_link(bitcode_paths, context));
 
-    T_MEASURE("wasm link", auto linker = wasm_link(text, stack_size));
+        aot_init_gen(assembly_paths, module.get(), context);
 
-    T_MEASURE("wasm write",
-            wasm_write(linker.get()->getOutput().wasm, emit_debug,
-                output_path));
+        T_MEASURE("wasm assembly",
+                auto text = wasm_assembly(module.get(), opt, context));
 
-    T_MEASURE("IL strip",
-            assembly_strip(assembly_paths, output_path));
+        T_MEASURE("wasm link",
+                auto linker = wasm_link(text, stack_size, false));
 
-    T_MEASURE("JS gen",
-            js_gen(linker.get()->getOutput().wasm, assembly_paths,
-                output_path));
+        T_MEASURE("wasm write",
+                wasm_write(linker.get()->getOutput().wasm, emit_debug,
+                    std::string(output_path) + "/index.wasm"));
+
+        T_MEASURE("IL strip",
+                assembly_strip(assembly_paths, output_path));
+
+        T_MEASURE("JS gen",
+                js_gen(linker.get()->getOutput().wasm, assembly_paths,
+                    output_path));
+    }
 
     T_PRINT("total", total);
 
