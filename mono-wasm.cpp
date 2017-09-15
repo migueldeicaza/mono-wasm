@@ -44,6 +44,7 @@
 #include "s2wasm.h"
 #include "wasm-linker.h"
 #include "wasm-binary.h"
+#include "wasm-io.h"
 #include "support/file.h"
 
 #define ERROR(...) \
@@ -446,6 +447,35 @@ bitcode_compile(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
 }
 
 static void
+wasm_merge_module(wasm::Module &output, wasm::Module &input)
+{
+    for (auto &curr : input.globals) {
+        output.addGlobal(curr.release());
+    }
+}
+
+static void
+wasm_merge(std::vector<std::string> &wasm_paths, bool debug_names,
+        std::string wasm_output)
+{
+    bool first = true;
+    wasm::Module module;
+    for (auto wasm_path : wasm_paths) {
+        wasm::ModuleReader reader;
+        if (first) {
+            reader.read(wasm_path, module);
+            first = false;
+        }
+        else {
+            wasm::Module other_module;
+            reader.read(wasm_path, other_module);
+            wasm_merge_module(module, other_module);
+        }
+    }
+    wasm_write(module, debug_names, wasm_output);
+}
+
+static void
 assembly_strip(std::vector<std::string> &paths, const char *output_path)
 {
     for (auto path : paths) {
@@ -635,6 +665,8 @@ main(int argc, char **argv)
         }
     }
 
+    auto output_wasm = std::string(output_path) + "/index.wasm";
+
     llvm::LLVMContext context;
     context.setDiagnosticHandler(diagnostic_handler, NULL, true);
 
@@ -672,15 +704,21 @@ main(int argc, char **argv)
         bool first_module = true;
         for (auto bitcode_path : bitcode_paths) {
             T_MEASURE(bitcode_path.c_str(),
-                    bitcode_compile(bitcode_path, opt, stack_size,
+                    auto path = bitcode_compile(bitcode_path, opt, stack_size,
                         !first_module, emit_debug, context));
+            wasm_paths.push_back(path);
             first_module = false;
         }
 
+        auto path = std::string(build_path) + "/aot_init.wasm";
+        wasm_paths.push_back(path);
         auto aot_init_mod = aot_init_gen(assembly_paths, NULL, context);
-        bitcode_module_compile(aot_init_mod, opt, stack_size, true, emit_debug,
-                context, std::string(build_path) + "/aot_init.wasm");
+        bitcode_module_compile(aot_init_mod, opt, stack_size, true,
+                emit_debug, context, path);
         delete aot_init_mod;
+
+        T_MEASURE("wasm link",
+                wasm_merge(wasm_paths, emit_debug, output_wasm));
     }
     else {
         T_MEASURE("bitcode link",
@@ -696,7 +734,7 @@ main(int argc, char **argv)
 
         T_MEASURE("wasm write",
                 wasm_write(linker.get()->getOutput().wasm, emit_debug,
-                    std::string(output_path) + "/index.wasm"));
+                    output_wasm));
 
         T_MEASURE("IL strip",
                 assembly_strip(assembly_paths, output_path));
