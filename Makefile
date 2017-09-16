@@ -53,8 +53,8 @@ build/eglib/%.bc : $(MONO_RUNTIME_PATH)/eglib/src/%.c
 	@/bin/mkdir -p $(dir $@)
 	$(CLANG) $(MONO_CFLAGS) $< -c -emit-llvm -o $@
 
-mscorlib.dll:
-	cp $(MONO_COMPILER_PATH)/mcs/class/lib/wasm/mscorlib.dll .
+mscorlib.dll: $(MONO_COMPILER_PATH)/mcs/class/lib/wasm/mscorlib.dll
+	cp $< $@
 
 build/boot.bc:        boot.c
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o build/boot.bc
