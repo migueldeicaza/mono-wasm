@@ -228,6 +228,99 @@ functions['env']['mono_wasm_js_eval_imp'] = function(expr) {
   return heap_malloc_string(String(res));
 }
 
+// Implementation of the JS/Mono API.
+
+function _MonoDomain() {
+  return instance.exports.mono_domain_get();
+}
+
+function _MonoGPtrToArray(ptr) {
+  var pdata = heap_get_int(ptr + 0);
+  var plen = heap_get_int(ptr + 4);
+  var ary = [];
+  for (var i = 0; i < plen; i++) {
+    ary.push(heap_get_int(pdata + (i * 4)));
+  }
+  return ary;
+}
+
+function _MonoAssemblies() {
+  var ptr = instance.exports.mono_domain_get_assemblies(_MonoDomain(), false);
+  return _MonoGPtrToArray(ptr);
+}
+
+function _MonoImage(assembly) {
+  return instance.exports.mono_assembly_get_image(assembly);
+}
+
+function MonoClass(namespace, name) {
+  var namespace_str = heap_malloc_string(namespace);
+  var name_str = heap_malloc_string(name);
+  var assemblies = _MonoAssemblies();
+  var klass = undefined;
+  for (var i in assemblies) {
+    var assembly = assemblies[i];
+    var image = _MonoImage(assembly);
+    var klass = instance.exports.mono_class_from_name(image, namespace_str,
+            name_str);
+    if (klass) {
+      break;
+    }
+  }
+  instance.exports.free(namespace_str);
+  instance.exports.free(name_str);
+  return klass;
+}
+
+function MonoMethod(klass, name, is_static) {
+  var flags = (is_static ? 0x10 : 0);
+  var name_str = heap_malloc_string(name);
+  var method = instance.exports.mono_class_get_method_from_name_flags(klass,
+          name_str, -1, flags);
+  instance.exports.free(name_str);
+  return method;
+}
+
+function MonoInvoke(obj, method, params) {
+  var sig = instance.exports.mono_method_signature(method);
+  var argc = instance.exports.mono_signature_get_param_count(sig);
+  if (params.length != argc) {
+    throw "invalid number of parameters";
+  }
+  var argv = 0;
+  if (argc > 0) {
+    argv = instance.exports.malloc(4 * argc);
+    for (var i in params) {
+      var param = params[i];
+      var arg = undefined;
+      if (Number.isInteger(param)) {
+        arg = instance.exports.malloc(4);
+        heap_set_int(arg, param);
+      }
+      else if (typeof param === 'string') {
+        var param_str = heap_malloc_string(param);        
+        arg = instance.exports.mono_string_new(_MonoDomain(), param_str)
+        instance.exports.free(param_str);
+      }
+      else {
+        throw "unsupported param type";
+      }
+      heap_set_int(argv + (i * 4), arg);
+    }
+  }
+  var res = instance.exports.mono_runtime_invoke(method, obj, argv);
+  if (argc > 0) {
+    //for (var i = 0; i < argc; i++) {
+    //  instance.exports.free(heap_get_int(argv + (i * 4)))
+    //}
+    instance.exports.free(argv);
+  }
+  //if (res) {
+  //  res = instance.exports.mono_object_unbox(res);
+  //}
+  return res;
+}
+
 // System calls.
 
 var fds = {}
