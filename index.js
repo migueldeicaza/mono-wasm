@@ -220,6 +220,16 @@ functions['env']['mono_wasm_throw_exception'] = function(exc) {
   throw new TerminateWasmException(msg)
 }
 
+// Implementation of the C# WebAssembly API.
+
+functions['env']['mono_wasm_js_eval_imp'] = function(expr) {
+  var str = heap_get_string(expr);
+  var res = eval(str);
+  return heap_malloc_string(String(res));
+}
+
+// System calls.
+
 var fds = {}
 fds[0] = undefined
 fds[1] = undefined
