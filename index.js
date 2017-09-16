@@ -681,7 +681,10 @@ if (browser_environment) {
         })
       );
     });
-    Promise.all(files_promises).then(function() { run_wasm_code() })
+    Promise.all(files_promises).then(function() {
+      run_wasm_code();
+      document.dispatchEvent(new Event('WebAssemblyContentLoaded'));
+    });
   })
 }
 else {
