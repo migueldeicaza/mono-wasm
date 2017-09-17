@@ -38,10 +38,5 @@ mono_wasm_main(char *main_assembly_name, int debug)
     g_log("mono-wasm", G_LOG_LEVEL_INFO, "running Main()");
     int mono_argc = 1;
     char *mono_argv[] = { main_assembly_name, NULL };
-    int ret = mono_jit_exec(domain, assembly, mono_argc, mono_argv);
-
-    g_log("mono-wasm", G_LOG_LEVEL_INFO, "terminating mono runtime");
-    //mono_jit_cleanup(domain);
-
-    return ret;
+    return mono_jit_exec(domain, assembly, mono_argc, mono_argv);
 }
