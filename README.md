@@ -200,6 +200,9 @@ $ make
 
 TODO (now):
 
+* JS/.NET interop:
+  * call C# from JS with a set of helper functions around the Mono runtime
+  * call JS from C# with an `eval` + simple DOM access API
 * fix garbage collection (need to figure out how to scan the stack)
 * ship a first 'alpha' release
 
@@ -209,6 +212,7 @@ TODO (later):
 * put mscorlib on a diet (currently 'hello world' is 10MB) by removing more functionality within the `wasm.make` profile and doing more aggressive IL linking
 * work on patches for mono based on the changes made in the fork
 * merge the WebAssembly LLVM code into the mono/llvm fork so that the Mono compiler can target wasm32 directly, and that we can merge the code into `mono-wasm` (we won't have to ship the Mono compiler separately as `monoc`)
+* improve the C# -> JS interop by doing a full C# API replication in JS like embeddinator 4000
 * investigate: threads, sockets, debugger, stack unwinding, simd and atomic operations, etc.
 
 TODO (even later):
