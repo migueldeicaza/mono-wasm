@@ -1,3 +1,6 @@
+using Mono.WebAssembly;
+using System;
+
 class Hello
 {
     static int Factorial(int n)
@@ -15,22 +18,25 @@ class Hello
     // the DOM.
     static void FactorialInElement(int n, string element_id)
     {
-        System.Console.WriteLine(
+        Console.WriteLine(
                 "Calculating factorial of {0} into DOM element {1}",
                 n, element_id);
 
         int f = Factorial(n);
 
-        string expr = System.String.Format(
+        string expr = String.Format(
                 "document.getElementById(\"{0}\").innerText = \"{1}\";",
                 element_id, f);
-        Mono.WebAssembly.Runtime.JavaScriptEval(expr);
+        Runtime.JavaScriptEval(expr);
     }
 
     static int Main(string[] args)
     {
         int f = Factorial(6);
-        System.Console.WriteLine("Hello world! factorial(6) -> {0}", f);
+        Console.WriteLine($"Hello world! factorial(6) -> {f}");
+
+        BrowserInformation bi = HtmlPage.BrowserInformation;
+        Console.WriteLine($"BrowserInformation: Name {bi.Name} BrowserVersion {bi.BrowserVersion} UserAgent {bi.UserAgent} Platform {bi.Platform} CookiesEnabled {bi.CookiesEnabled} ProductName {bi.ProductName}");
 
         if (args.Length > 0) FactorialInElement(0, ""); // this is a hack so that the linker does not remove the FactorialInElement() method
 
