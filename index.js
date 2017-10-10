@@ -228,6 +228,31 @@ functions['env']['mono_wasm_js_eval_imp'] = function(expr) {
   return heap_malloc_string(String(res));
 }
 
+var mono_wasm_refs = {};
+var mono_wasm_ref_counter = 0;
+
+Object.defineProperty(Object.prototype, "__uniqueId", {
+  writable: true
+});
+Object.defineProperty(Object.prototype, "uniqueId", {
+  get: function() {
+    if (this.__uniqueId == undefined) {
+      this.__uniqueId = mono_wasm_ref_counter++;
+    }
+    return this.__uniqueId;
+  }
+});
+
+function mono_wasm_wrap_obj(obj) {
+  var ref = obj.uniqueId;
+  mono_wasm_refs[ref] = obj;
+  return ref;
+}
+
+function mono_wasm_unwrap_obj(ref) {
+  return mono_wasm_refs[ref];
+}
+
 // Implementation of the JS/Mono API.
 
 function _MonoDomain() {
