@@ -13,9 +13,8 @@ class Hello
 
     // This function is called from the browser by JavaScript.
     // Here we calculate the factorial of the given number then use the
-    // Mono.WebAssembly.JavaScriptEval() method to evaluate a JavaScript
-    // expression that will set the result as the text of a given element in
-    // the DOM.
+    // Mono.WebAssembly API to retrieve the element from the DOM and set its
+    // innerText property to the factorial result.
     static void FactorialInElement(int n, string element_id)
     {
         Console.WriteLine(
@@ -24,19 +23,20 @@ class Hello
 
         int f = Factorial(n);
 
-        string expr = String.Format(
-                "document.getElementById(\"{0}\").innerText = \"{1}\";",
-                element_id, f);
-        Runtime.JavaScriptEval(expr);
+        var elem = HtmlPage.Document.GetElementById(element_id);
+        elem.InnerText = f.ToString();
     }
 
     static int Main(string[] args)
     {
         int f = Factorial(6);
-        Console.WriteLine($"Hello world! factorial(6) -> {f}");
+        HtmlPage.Window.Alert($"Hello world! factorial(6) -> {f}");
 
-        BrowserInformation bi = HtmlPage.BrowserInformation;
+        var bi = HtmlPage.BrowserInformation;
         Console.WriteLine($"BrowserInformation: Name {bi.Name} BrowserVersion {bi.BrowserVersion} UserAgent {bi.UserAgent} Platform {bi.Platform} CookiesEnabled {bi.CookiesEnabled} ProductName {bi.ProductName}");
+
+        var d = HtmlPage.Document;
+        Console.WriteLine($"Document Location: {d.Location}");
 
         if (args.Length > 0) FactorialInElement(0, ""); // this is a hack so that the linker does not remove the FactorialInElement() method
 
