@@ -102,12 +102,9 @@ function heap_set_string(ptr, str) {
 }
 
 function heap_malloc_string(str) {
-  if (str.length > 0) {
-    var ptr = instance.exports.malloc(str.length + 1)
-    heap_set_string(ptr, str)
-    return ptr
-  }
-  return 0
+  var ptr = instance.exports.malloc(str.length + 1)
+  heap_set_string(ptr, str)
+  return ptr
 }
 
 function heap_human(size) {
