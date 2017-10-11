@@ -30,12 +30,21 @@ class Hello
 
     static void PrintHtmlElements(HtmlElement elem, int level)
     {
-        string indent = "";
+        string str = "";
         for (int i = 0; i < level; i++) {
-            indent += "  ";
+            str += "  ";
         }
 
-        Console.WriteLine(indent + $"<{elem.TagName} id='{elem.Id}' class ='{elem.ClassName}'>");
+        str += $"<{elem.TagName}";
+
+        foreach (var name in elem.AttributeNames) {
+            var value = elem.GetAttribute(name);
+            str += $" {name}='{value}'";
+        }
+
+        str += ">";
+
+        Console.WriteLine(str);
 
         var list = elem.Children;
         for (int i = 0; i < list.Count; i++) {
