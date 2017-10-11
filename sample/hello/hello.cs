@@ -27,6 +27,23 @@ class Hello
         elem.InnerText = f.ToString();
     }
 
+
+    static void PrintHtmlElements(HtmlElement elem, int level)
+    {
+        string indent = "";
+        for (int i = 0; i < level; i++) {
+            indent += "  ";
+        }
+
+        Console.WriteLine(indent + $"<{elem.TagName} id='{elem.Id}' class ='{elem.ClassName}'>");
+
+        var list = elem.Children;
+        for (int i = 0; i < list.Count; i++) {
+            var child = list[i];
+            PrintHtmlElements(child, level + 1);
+        }
+    }
+
     static int Main(string[] args)
     {
         int f = Factorial(6);
@@ -37,6 +54,8 @@ class Hello
 
         var d = HtmlPage.Document;
         Console.WriteLine($"Document Location: {d.Location}");
+
+        PrintHtmlElements(d.DocumentElement, 0);
 
         if (args.Length > 0) FactorialInElement(0, ""); // this is a hack so that the linker does not remove the FactorialInElement() method
 
