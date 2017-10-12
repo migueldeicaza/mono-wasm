@@ -228,20 +228,15 @@ functions['env']['mono_wasm_js_eval_imp'] = function(expr) {
 var mono_wasm_refs = {};
 var mono_wasm_ref_counter = 0;
 
-Object.defineProperty(Object.prototype, "__uniqueId", {
+Object.defineProperty(Object.prototype, "__mono_wasm_ref__", {
   writable: true
-});
-Object.defineProperty(Object.prototype, "uniqueId", {
-  get: function() {
-    if (this.__uniqueId == undefined) {
-      this.__uniqueId = mono_wasm_ref_counter++;
-    }
-    return this.__uniqueId;
-  }
 });
 
 function mono_wasm_wrap_obj(obj) {
-  var ref = obj.uniqueId;
+  var ref = obj.__mono_wasm_ref__;
+  if (ref == undefined) {
+    obj.__mono_wasm_ref__ = ref = mono_wasm_ref_counter++;
+  }
   mono_wasm_refs[ref] = obj;
   return ref;
 }
