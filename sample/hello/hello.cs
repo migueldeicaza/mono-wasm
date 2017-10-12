@@ -27,7 +27,6 @@ class Hello
         elem.InnerText = f.ToString();
     }
 
-
     static void PrintHtmlElements(HtmlElement elem, int level)
     {
         string str = "";
@@ -65,6 +64,10 @@ class Hello
         Console.WriteLine($"Document Location: {d.Location}");
 
         PrintHtmlElements(d.DocumentElement, 0);
+
+        var p = d.CreateElement("p");
+        p.InnerText = "This text was added at runtime.";
+        d.Body.AppendChild(p);
 
         if (args.Length > 0) FactorialInElement(0, ""); // this is a hack so that the linker does not remove the FactorialInElement() method
 
