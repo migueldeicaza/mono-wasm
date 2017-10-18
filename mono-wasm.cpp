@@ -5,6 +5,7 @@
 #include <mach/mach_time.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <libgen.h>
 
 #include <string>
 #include <vector>
@@ -174,10 +175,13 @@ assembly_link(std::vector<std::string> &assembly_paths,
     }
 
 skip_link:
+    char *first_assembly = strdup(basename((char *)assembly_paths[0].c_str()));
+    assert(first_assembly != NULL);
     assembly_paths.clear();
     DIR *dir = opendir(output_path);
     assert(dir != NULL);
     struct dirent *entry;
+    int i = 0, first_assembly_i = -1;
     while ((entry = readdir(dir)) != NULL) {
         const char *s = entry->d_name;
         size_t sl = strlen(s);
@@ -185,11 +189,22 @@ skip_link:
             const char *sp = s + sl - 4;
             if (strcmp(sp, ".exe") == 0 || strcmp(sp, ".dll") == 0) {
                 auto linked_path = dest_base + s;
-                assembly_paths.push_back(linked_path); 
+                assembly_paths.push_back(linked_path);
+                if (strcmp(s, first_assembly) == 0) {
+                    first_assembly_i = i;
+                }
+                i++;
             }
         }
     }
     closedir(dir);
+    // The first assembly path must remain the same given to the command line.
+    assert (first_assembly_i >= 0);
+    if (first_assembly_i > 0) {
+        std::iter_swap(assembly_paths.begin() + first_assembly_i,
+                assembly_paths.begin());
+    }
+    free(first_assembly);
 }
 
 static std::string
