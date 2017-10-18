@@ -219,9 +219,16 @@ functions['env']['mono_wasm_throw_exception'] = function(exc) {
 
 // Implementation of the C# WebAssembly API.
 
-functions['env']['mono_wasm_js_eval_imp'] = function(expr) {
+functions['env']['mono_wasm_js_eval_imp'] = function(expr, exception_raised) {
   var str = heap_get_string(expr);
-  var res = eval(str);
+  var res = undefined;
+  try {
+    res = eval(str);
+  }
+  catch (e) {
+    heap_set_int(exception_raised, 1);
+    res = e;
+  }
   return heap_malloc_string(String(res));
 }
 
