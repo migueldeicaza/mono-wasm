@@ -39,10 +39,39 @@ class Test
         assert(bi.ProductName == "Mozilla");
     }
 
+    void test_HtmlDocument()
+    {
+        var doc = HtmlPage.Document;
+
+        var root = doc.DocumentElement;
+        assert(root.TagName == "HTML");
+        assert(doc.GetElementsByTagName("html")[0].Equals(root));
+        assert(root.Parent == null);
+
+        var body = doc.Body;
+        assert(body.TagName == "BODY");
+        assert(doc.GetElementsByTagName("body")[0].Equals(body));
+        assert(body.Parent.Equals(root));
+
+        // We can't use `Contains()' or even `foreach' yet due to a compiler
+        // limitation.
+        bool found_body_in_root_children = false;
+        var root_children = root.Children;
+        for (int i = 0, len = root_children.Count; i < len; i++) {
+            var child = root_children[i];
+            if (child.Equals(body)) {
+                found_body_in_root_children = true;
+                break;
+            }
+        }
+        assert(found_body_in_root_children);
+    }
+
     void run_tests()
     {
         test_Runtime();
         test_BrowserInformation();
+        test_HtmlDocument();
 
         Console.WriteLine("All tests ({0}) successful", count);
     }
