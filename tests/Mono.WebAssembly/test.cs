@@ -65,6 +65,14 @@ class Test
             }
         }
         assert(found_body_in_root_children);
+
+        var span_id = doc.GetElementById("span-id");
+        assert(span_id != null);
+        assert(span_id.TagName == "SPAN");
+        assert(span_id.Parent.Equals(body));
+        assert(span_id.InnerText == "span-id text");
+
+        assert(doc.GetElementById("does-not-exist") == null);
     }
 
     void run_tests()
