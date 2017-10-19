@@ -25,9 +25,24 @@ class Test
                     "(function(x, y) { return x + y; })(40, 2);") == "42");
     }
 
+    void test_BrowserInformation()
+    {
+        var bi = HtmlPage.BrowserInformation;
+
+        assert(bi.Name == "Netscape");
+        assert(bi.BrowserVersion.Contains("5.0"));
+        assert(bi.UserAgent.Contains("Firefox")
+                || bi.UserAgent.Contains("Chrome")
+                || bi.UserAgent.Contains("Safari"));
+        assert(bi.Platform == "MacIntel");
+        assert(bi.CookiesEnabled == true);
+        assert(bi.ProductName == "Mozilla");
+    }
+
     void run_tests()
     {
         test_Runtime();
+        test_BrowserInformation();
 
         Console.WriteLine("All tests ({0}) successful", count);
     }
