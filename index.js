@@ -240,11 +240,14 @@ Object.defineProperty(Object.prototype, "__mono_wasm_ref__", {
 });
 
 function mono_wasm_wrap_obj(obj) {
-  var ref = obj.__mono_wasm_ref__;
-  if (ref == undefined) {
-    obj.__mono_wasm_ref__ = ref = mono_wasm_ref_counter++;
+  var ref = undefined;
+  if (obj != null) {
+    ref = obj.__mono_wasm_ref__;
+    if (ref == undefined) {
+      obj.__mono_wasm_ref__ = ref = mono_wasm_ref_counter++;
+    }
+    mono_wasm_refs[ref] = obj;
   }
-  mono_wasm_refs[ref] = obj;
   return ref;
 }
 
