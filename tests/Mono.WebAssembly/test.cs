@@ -100,11 +100,57 @@ class Test
         assert_Equals(doc.GetElementById("span-id2"), null);
     }
 
+    void test_HtmlNode()
+    {
+        var doc = HtmlPage.Document;
+
+        assert_Equals(doc.GetElementsByTagName("does-not-exist").Count, 0);
+        assert_Equals(doc.Body.GetElementsByTagName("does-not-exist").Count, 0);
+
+        assert_Equals(doc.GetElementsByTagName("p").Count, 3);
+        assert_Equals(doc.Body.GetElementsByTagName("p").Count, 3);
+
+        assert_Equals(doc.GetElementsByClassName("my-class").Count, 4);
+        assert_Equals(doc.Body.GetElementsByClassName("my-class").Count, 4);
+        var ary = doc.GetElementsByClassName("container");
+        var ary2 = doc.Body.GetElementsByClassName("container");
+        assert_Equals(ary.Count, 1);
+        assert_Equals(ary2.Count, 1);
+        var container = ary[0];
+        assert_Equals(container, ary2[0]);
+        assert_Equals(container.GetElementsByClassName("my-class").Count, 1);
+        assert_Equals(container.InnerText, "my-class-container\ntext");
+
+        var ary3 = container.GetElementsByTagName("span");
+        assert_Equals(ary3.Count, 1);
+        ary3[0].InnerText = "42";
+        assert_Equals(container.InnerText, "my-class-container\n42");
+
+        assert_Equals(doc.QuerySelector(".does-not-exist"), null);
+        assert_Equals(doc.Body.QuerySelector(".does-not-exist"), null);
+
+        var elem = doc.QuerySelector(".my-class");
+        assert(elem != null);
+        assert_Equals(elem, doc.QuerySelector(".container"));
+        assert_Equals(elem, doc.Body.QuerySelector(".my-class"));
+        assert_Equals(elem, doc.Body.QuerySelector(".container"));
+
+        var ary4 = doc.QuerySelectorAll(".my-class");
+        var ary5 = doc.Body.QuerySelectorAll(".my-class");
+        assert_Equals(ary4.Count, 4);
+        assert_Equals(ary5.Count, 4);
+        assert_Equals(ary4[0], elem);
+        assert_Equals(ary5[0], elem);
+
+        assert_Equals(doc.QuerySelector(".container span"), ary3[0]);
+    }
+
     void run_tests()
     {
         test_Runtime();
         test_BrowserInformation();
         test_HtmlDocument();
+        test_HtmlNode();
 
         if (failures == 0) {
             Console.WriteLine("All tests ({0}) successful", count);
