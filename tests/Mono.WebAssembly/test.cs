@@ -97,6 +97,7 @@ class Test
         assert_Equals(doc.GetElementById("span-id2"), elem);
         body.RemoveChild(elem);
         assert_Equals(elem.Parent, null);
+        assert_Equals(doc.GetElementById("span-id2"), null);
     }
 
     void run_tests()
