@@ -145,12 +145,53 @@ class Test
         assert_Equals(doc.QuerySelector(".container span"), ary3[0]);
     }
 
+    void test_HtmlElement()
+    {
+        var doc = HtmlPage.Document;
+
+        var elem = doc.CreateElement("div");
+        assert_Equals(elem.TagName, "DIV");
+        assert_Equals(elem.ClassName, "");
+        assert_Equals(elem.Id, "");
+        assert_Equals(elem.Parent, null);
+        assert_Equals(elem.Children.Count, 0);
+        assert_Equals(elem.AttributeNames.Length, 0);
+        assert_Equals(elem.InnerText, "");
+
+        elem.InnerText = "foo";
+        assert_Equals(elem.InnerText, "foo");
+
+        assert_Equals(elem.GetAttribute("does-not-exist"), null);
+
+        elem.ClassName = "my-class";
+        assert_Equals(elem.ClassName, "my-class");
+        assert_Equals(elem.AttributeNames.Length, 1);
+        assert_Equals(elem.AttributeNames[0], "class");
+        assert_Equals(elem.GetAttribute("class"), "my-class");
+
+        elem.SetAttribute("id", "my-id");
+        assert_Equals(elem.Id, "my-id");
+        assert_Equals(elem.AttributeNames.Length, 2);
+
+        elem.RemoveAttribute("id");
+        assert_Equals(elem.Id, "");
+        assert_Equals(elem.AttributeNames.Length, 1);
+
+        var ary = doc.GetElementsByTagName("script");
+        assert_Equals(ary.Count, 1);
+        var elem2 = ary[0];
+        assert_Equals(elem2.AttributeNames.Length, 1);
+        assert_Equals(elem.AttributeNames[0], "src");
+        assert_Equals(elem.GetAttribute("src"), "index.js");
+    }
+
     void run_tests()
     {
         test_Runtime();
         test_BrowserInformation();
         test_HtmlDocument();
         test_HtmlNode();
+        test_HtmlElement();
 
         if (failures == 0) {
             Console.WriteLine("All tests ({0}) successful", count);
