@@ -37,7 +37,6 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/IPO/FunctionImport.h"
 #include "llvm/Transforms/IPO/Internalize.h"
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
@@ -683,7 +682,7 @@ main(int argc, char **argv)
     auto output_wasm = std::string(output_path) + "/index.wasm";
 
     llvm::LLVMContext context;
-    context.setDiagnosticHandler(diagnostic_handler, NULL, true);
+    context.setDiagnosticHandlerCallBack(diagnostic_handler, NULL, true);
 
     uint64_t start = 0, total = 0, delta = 0;
     mach_timebase_info_data_t timebase_info;
