@@ -72,7 +72,7 @@ wasm-linker.o:	$(BINARYEN_PATH)/src/wasm-linker.cpp
 	/usr/bin/clang -I$(BINARYEN_PATH)/src $(MONO_WASM_CXXFLAGS) -DNO_EMSCRIPTEN_GLUE -c $(BINARYEN_PATH)/src/wasm-linker.cpp -o wasm-linker.o
 
 mono-wasm:      jsmin.o wasm-linker.o mono-wasm.cpp
-	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags) -Wno-gnu $(MONO_WASM_CXXFLAGS) -I$(BINARYEN_PATH)/src -g mono-wasm.cpp -o mono-wasm -lncurses -lz $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ast cfg asmjs) jsmin.o wasm-linker.o $(shell $(LLVM_PATH)/bin/llvm-config --libs $(MONO_WASM_LLVM_COMPONENTS))
+	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags) -Wno-gnu $(MONO_WASM_CXXFLAGS) -I$(BINARYEN_PATH)/src -g mono-wasm.cpp -o mono-wasm -lncurses -lz $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ir cfg asmjs) jsmin.o wasm-linker.o $(shell $(LLVM_PATH)/bin/llvm-config --libs $(MONO_WASM_LLVM_COMPONENTS))
 
 dist-install:   mono-wasm build/runtime.bc mscorlib.dll
 	rm -rf dist
