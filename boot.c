@@ -8,6 +8,7 @@
 
 void mono_wasm_aot_init(void);
 
+__attribute__ ((__visibility__ ("default")))
 int
 mono_wasm_main(char *main_assembly_name, int debug)
 {
