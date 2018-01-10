@@ -2,7 +2,6 @@ MONO_RUNTIME_PATH = ../mono-runtime
 MONO_COMPILER_PATH = ../mono-compiler
 LIBC_PATH = ../libc
 LLVM_PATH = ../llvm-build
-BINARYEN_PATH = ../binaryen
 
 CLANG = $(LLVM_PATH)/bin/clang
 
@@ -67,16 +66,13 @@ build/runtime.bc:     build/boot.bc build/libc.bc build/libmono.bc
 	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc build/boot.bc -o build/runtime.bc
 
 MONO_WASM_CXXFLAGS = -Wno-sign-compare -std=c++1y -UNDEBUG -fexceptions
-MONO_WASM_LLVM_COMPONENTS = BitReader BitWriter Core IRReader Linker Object Support TransformUtils IPO webassembly
+MONO_WASM_LLVM_COMPONENTS = BitReader BitWriter Core IRReader Linker Object Support TransformUtils IPO webassembly Option
 
 jsmin.o:        jsmin.c
 	/usr/bin/clang -c jsmin.c -o jsmin.o
 
-wasm-linker.o:	$(BINARYEN_PATH)/src/wasm-linker.cpp
-	/usr/bin/clang -I$(BINARYEN_PATH)/src $(MONO_WASM_CXXFLAGS) -DNO_EMSCRIPTEN_GLUE -c $(BINARYEN_PATH)/src/wasm-linker.cpp -o wasm-linker.o
-
 mono-wasm:      jsmin.o wasm-linker.o mono-wasm.cpp
-	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags) -Wno-gnu $(MONO_WASM_CXXFLAGS) -I$(BINARYEN_PATH)/src -g mono-wasm.cpp -o mono-wasm -lncurses -lz $(patsubst %, $(BINARYEN_PATH)/lib/lib%.a, wasm support passes ir cfg asmjs) jsmin.o wasm-linker.o $(shell $(LLVM_PATH)/bin/llvm-config --libs $(MONO_WASM_LLVM_COMPONENTS))
+	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags) -Wno-gnu $(MONO_WASM_CXXFLAGS) -I$(shell $(LLVM_PATH)/bin/llvm-config --src-root)/tools/lld/include -g mono-wasm.cpp -o mono-wasm -lncurses -lz jsmin.o $(shell $(LLVM_PATH)/bin/llvm-config --libs $(MONO_WASM_LLVM_COMPONENTS)) -llldCommon -llldCore -llldDriver -llldReaderWriter -llldWasm
 
 dist-install:   mono-wasm build/runtime.bc mscorlib.dll
 	rm -rf dist

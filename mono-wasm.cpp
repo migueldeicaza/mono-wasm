@@ -41,11 +41,7 @@
 #include "llvm/Transforms/IPO/Internalize.h"
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
 
-#include "s2wasm.h"
-#include "wasm-linker.h"
-#include "wasm-binary.h"
-#include "wasm-io.h"
-#include "support/file.h"
+#include "lld/Common/Driver.h"
 
 #define ERROR(...) \
     do { \
@@ -310,57 +306,21 @@ aot_init_gen(std::vector<std::string> &assembly_paths, llvm::Module *module,
     return module;
 }
 
-class malloc_ostream : public llvm::raw_pwrite_stream {
-    char *memory;
-    size_t cap;
-    uint64_t pos;
-
-    void write_impl(const char *ptr, size_t size) override {
-        if (pos + size > cap) {
-            size_t new_cap = pos + size + (cap / 2);
-            memory = (char *)realloc(memory, new_cap);
-            assert(memory != NULL);
-            cap = new_cap;
-        }
-        memcpy(memory + pos, ptr, size);
-        pos += size;
-    }
-
-    void pwrite_impl(const char *ptr, size_t size, uint64_t offset) override {
-        memcpy(memory + offset, ptr, size);
-    }
-
-    uint64_t current_pos() const override {
-        return pos;
-    }
-
-public:
-    malloc_ostream(size_t size) {
-        assert(size > 0);
-        memory = (char *)malloc(size);
-        assert(memory != NULL);
-        pos = 0;
-        cap = size;
-        SetUnbuffered();
-    }
-
-    char *buffer() {
-        return memory;
-    }
-
-    size_t size() {
-        return pos;
-    }
-};
-
-static const char *
-wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
-        llvm::LLVMContext &context)
+static void
+wasm_codegen(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
+        llvm::LLVMContext &context, std::string wasm_path)
 {
-    LLVMInitializeWebAssemblyTarget();
-    LLVMInitializeWebAssemblyTargetMC();
-    LLVMInitializeWebAssemblyTargetInfo();
-    LLVMInitializeWebAssemblyAsmPrinter();
+    static bool init_done = false;
+    if (!init_done) {
+        LLVMInitializeWebAssemblyTarget();
+        LLVMInitializeWebAssemblyTargetMC();
+        LLVMInitializeWebAssemblyTargetInfo();
+        LLVMInitializeWebAssemblyAsmPrinter();
+        init_done = true;
+    }
+
+    // Important to generate a proper wasm object file.
+    module->setTargetTriple("wasm32-unknown-unknown-wasm");
 
     std::string err;
     auto triple = llvm::Triple(module->getTargetTriple());
@@ -388,58 +348,24 @@ wasm_assembly(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
 
     module->setDataLayout(target_machine->createDataLayout());
 
-    malloc_ostream stream(1024 * 1000 * 100);
+    std::error_code EC;
+    llvm::raw_fd_ostream dest(wasm_path, EC, llvm::sys::fs::F_None);
+    if (EC) {
+        ERROR("error when opening file %s: %s\n", wasm_path.c_str(),
+                EC.message().c_str());
+    }
 
-    if (target_machine->addPassesToEmitFile(pm, stream,
-                llvm::TargetMachine::CGFT_AssemblyFile)) {
+    if (target_machine->addPassesToEmitFile(pm, dest,
+                llvm::TargetMachine::CGFT_ObjectFile)) {
         ERROR("target does not support assembly generation\n");
     }
 
     pm.run(*module);
-
-    return stream.buffer();
-}
-
-static std::unique_ptr<wasm::Linker>
-wasm_link(const char *text, size_t stack_size, bool import_memory)
-{
-    wasm::S2WasmBuilder builder(text, false);
-
-    auto linker = std::make_unique<wasm::Linker>(0, stack_size, 0, 0,
-            import_memory, false, "", false);
-    linker->linkObject(builder);
-    linker->layout();
-
-    return linker;
-}
-
-static void
-wasm_write(wasm::Module &wasm, bool debug_names, std::string output_path)
-{
-    wasm::BufferWithRandomAccess buffer(false);
-
-    wasm::WasmBinaryWriter writer(&wasm, buffer, false);
-    writer.setNamesSection(debug_names);
-    writer.write();
-
-    wasm::Output output(output_path, wasm::Flags::Binary,
-            wasm::Flags::Release);
-    buffer.writeTo(output);
-}
-
-static void
-bitcode_module_compile(llvm::Module *mod, llvm::CodeGenOpt::Level opt,
-        size_t stack_size, bool import_memory, bool emit_debug,
-        llvm::LLVMContext &context, std::string wasm_path)
-{
-    auto text = wasm_assembly(mod, opt, context);
-    auto linker = wasm_link(text, stack_size, true);
-    wasm_write(linker.get()->getOutput().wasm, emit_debug, wasm_path);
+    dest.flush();
 }
 
 static std::string
-bitcode_compile(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
-        size_t stack_size, bool import_memory, bool emit_debug,
+wasm_codegen2(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
         llvm::LLVMContext &context)
 {
     auto wasm_path = bitcode_path + ".wasm";
@@ -453,40 +379,32 @@ bitcode_compile(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
                     err.getLineNo(), err.getMessage().str().c_str());
         }
 
-        bitcode_module_compile(module.get(), opt, stack_size, import_memory,
-                emit_debug, context, wasm_path);
+        wasm_codegen(module.get(), opt, context, wasm_path);
     }
 
     return wasm_path;
 }
 
 static void
-wasm_merge_module(wasm::Module &output, wasm::Module &input)
+wasm_link(std::vector<std::string> &paths, std::string output)
 {
-    for (auto &curr : input.globals) {
-        output.addGlobal(curr.release());
+    std::vector<const char *> args;
+    args.push_back("wasm-lld");
+    for (auto path : paths) {
+        args.push_back(strdup(path.c_str()));
     }
-}
+    args.push_back("-o");
+    args.push_back(output.c_str());
+    args.push_back("--allow-undefined");
+    args.push_back("--no-entry");
 
-static void
-wasm_merge(std::vector<std::string> &wasm_paths, bool debug_names,
-        std::string wasm_output)
-{
-    bool first = true;
-    wasm::Module module;
-    for (auto wasm_path : wasm_paths) {
-        wasm::ModuleReader reader;
-        if (first) {
-            reader.read(wasm_path, module);
-            first = false;
-        }
-        else {
-            wasm::Module other_module;
-            reader.read(wasm_path, other_module);
-            wasm_merge_module(module, other_module);
-        }
+    if (!lld::wasm::link(args, false)) {
+        ERROR("failed to link wasm files\n");
     }
-    wasm_write(module, debug_names, wasm_output);
+
+    for (int i = 0; i < paths.size(); i++) {
+        free((char *)args[i + 1]);
+    }
 }
 
 static void
@@ -514,26 +432,8 @@ extern "C" {
 }
 
 static void
-js_gen(wasm::Module &wasm, std::vector<std::string> &assembly_paths,
-        const char *output_path)
+js_gen(std::vector<std::string> &assembly_paths, const char *output_path)
 {
-    std::vector<std::string> missing_functions, missing_globals;
-    for (auto &import : wasm.imports) {
-        const char *name = import->name.c_str();
-        switch (import->kind) {
-            case wasm::ExternalKind::Function:
-                missing_functions.push_back(name);
-                break;
-
-            case wasm::ExternalKind::Global:
-                missing_globals.push_back(name);
-                break;
-
-            default:
-                break;
-        }
-    }
-
     auto index_js = std::string(libdir_path) + "/index.js";
     FILE_MUST_EXIST(index_js.c_str());
 
@@ -544,17 +444,7 @@ js_gen(wasm::Module &wasm, std::vector<std::string> &assembly_paths,
                 strerror(errno));
     }
 
-    fprintf(output, "var missing_functions=[");
-    for (auto name : missing_functions) {
-        fprintf(output, "\"%s\",", name.c_str());
-    }
-
-    fprintf(output, "];var missing_globals=[");
-    for (auto name : missing_globals) {
-        fprintf(output, "\"%s\",", name.c_str());
-    }
-
-    fprintf(output, "];var files=[");
+    fprintf(output, "var files=[");
     for (auto path : assembly_paths) {
         const char *base = strrchr(path.c_str(), '/');
         assert(base != NULL);
@@ -585,9 +475,6 @@ main(int argc, char **argv)
                 "    -o <directory>        Specify output directory\n" \
                 "    -On                   Specify optimization level\n" \
                 "                          (0, 1, 2, 3, default is 2)\n" \
-                "    -g                    Emit debug information\n" \
-                "    -s <size>             Specify stack size in bytes\n" \
-                "                          (default is 2M)\n" \
                 "    -v                    Verbose output\n" \
                 "    -i                    Incremental build (experimental)\n",
                 argv[0]);
@@ -596,10 +483,8 @@ main(int argc, char **argv)
     const char *build_path = "./build";
     const char *output_path = NULL;
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
-    bool emit_debug = false;
     bool verbose = false;
     bool incremental = false;
-    size_t stack_size = 1024 * 1000 * 2;
     std::vector<std::string> assembly_paths, bitcode_paths, wasm_paths;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -617,19 +502,6 @@ main(int argc, char **argv)
                     ERROR("expected value for `-o' option\n");
                 }
                 output_path = argv[i];
-            }
-            else if (arg[1] == 's' && arg[2] == '\0') {
-                i++;
-                if (i >= argc) {
-                    ERROR("expected value for `-s' option\n");
-                }
-                stack_size = atoi(argv[i]);
-                if (stack_size <= 0) {
-                    ERROR("`-s' value must be greater than zero\n");
-                }
-            }
-            else if (arg[1] == 'g' && arg[2] == '\0') {
-                emit_debug = true;
             }
             else if (arg[1] == 'v' && arg[2] == '\0') {
                 verbose = true;
@@ -688,80 +560,63 @@ main(int argc, char **argv)
     mach_timebase_info_data_t timebase_info;
     mach_timebase_info(&timebase_info);
 
-#define T_PRINT(what, delta) \
-    if (verbose) { \
-        printf("%15s : %.3fs\n", what, \
-                (((double)(delta) * timebase_info.numer) \
-                 / (timebase_info.denom * 1000000000))); \
-    }
-
 #define T_MEASURE(what, code) \
     start = mach_absolute_time(); \
+    if (verbose) { \
+        std::string _what = what; \
+        printf("%s ... ", _what.c_str()); \
+    } \
     code; \
     delta = mach_absolute_time() - start; \
     total += delta; \
-    T_PRINT(what, delta)
+    if (verbose) { \
+        printf("%.3fs\n", (((double)(delta) * timebase_info.numer) \
+                    / (timebase_info.denom * 1000000000))); \
+    }
 
     T_MEASURE("IL link", assembly_link(assembly_paths, build_path));
 
     bitcode_paths.push_back(std::string(libdir_path) + "/runtime.bc");
     for (auto assembly_path : assembly_paths) {
-        T_MEASURE(assembly_path.c_str(),
+        T_MEASURE(std::string("IL/IR compile ") + assembly_path,
                 auto bitcode_path = assembly_compile(assembly_path,
                     build_path));
         bitcode_paths.push_back(bitcode_path);
     }
 
     if (incremental) {
-        fprintf(stderr, "Warning: incremental build isn't functional yet.\n");
-
-        bool first_module = true;
         for (auto bitcode_path : bitcode_paths) {
-            T_MEASURE(bitcode_path.c_str(),
-                    auto path = bitcode_compile(bitcode_path, opt, stack_size,
-                        !first_module, emit_debug, context));
+            T_MEASURE(std::string("IR/WASM codegen ")
+                    + bitcode_path.c_str(),
+                    auto path = wasm_codegen2(bitcode_path, opt, context));
             wasm_paths.push_back(path);
-            first_module = false;
         }
 
         auto path = std::string(build_path) + "/aot_init.wasm";
         wasm_paths.push_back(path);
         auto aot_init_mod = aot_init_gen(assembly_paths, NULL, context);
-        bitcode_module_compile(aot_init_mod, opt, stack_size, true,
-                emit_debug, context, path);
+        wasm_codegen(aot_init_mod, opt, context, path);
         delete aot_init_mod;
-
-        T_MEASURE("wasm link",
-                wasm_merge(wasm_paths, emit_debug, output_wasm));
     }
     else {
-        T_MEASURE("bitcode link",
+        T_MEASURE("IR link",
                 auto module = bitcode_link(bitcode_paths, context));
 
         aot_init_gen(assembly_paths, module.get(), context);
 
-        T_MEASURE("wasm assembly",
-                auto text = wasm_assembly(module.get(), opt, context));
-
-        T_MEASURE("wasm link",
-                auto linker = wasm_link(text, stack_size, false));
-
-        T_MEASURE("wasm write",
-                wasm_write(linker.get()->getOutput().wasm, emit_debug,
-                    output_wasm));
-
-        T_MEASURE("IL strip",
-                assembly_strip(assembly_paths, output_path));
-
-        T_MEASURE("JS gen",
-                js_gen(linker.get()->getOutput().wasm, assembly_paths,
-                    output_path));
+        auto path = std::string(build_path) + "/index.wasm";
+        T_MEASURE("IR/WASM codegen",
+                wasm_codegen(module.get(), opt, context, path));
+        wasm_paths.push_back(path);
     }
 
-    T_PRINT("total", total);
+    T_MEASURE("WASM link", wasm_link(wasm_paths, output_wasm));
+
+    T_MEASURE("IL strip", assembly_strip(assembly_paths, output_path));
+
+    T_MEASURE("JS gen", js_gen(assembly_paths, output_path));
 
 #undef T_MEASURE
-#undef T_PRINT
 
     return 0;
 }
