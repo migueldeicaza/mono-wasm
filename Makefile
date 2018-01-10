@@ -57,9 +57,11 @@ mscorlib.dll: $(MONO_COMPILER_PATH)/mcs/class/lib/wasm/mscorlib.dll
 	cp $< $@
 
 build/boot.bc:        boot.c
+	@/bin/mkdir -p $(dir $@)
 	$(CLANG) $(MONO_CFLAGS) boot.c -c -emit-llvm -o build/boot.bc
 
 build/runtime.bc:     build/boot.bc build/libc.bc build/libmono.bc
+	@/bin/mkdir -p $(dir $@)
 	$(LLVM_PATH)/bin/llvm-link build/libc.bc build/libmono.bc build/boot.bc -o build/runtime.bc
 
 MONO_WASM_CXXFLAGS = -Wno-sign-compare -std=c++1y -UNDEBUG -fexceptions
