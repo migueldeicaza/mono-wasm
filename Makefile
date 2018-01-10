@@ -6,7 +6,9 @@ BINARYEN_PATH = ../binaryen
 
 CLANG = $(LLVM_PATH)/bin/clang
 
-LIBC_CFLAGS = -fno-stack-protector -nostdinc -I$(LIBC_PATH)/include -I$(LIBC_PATH)/src/internal -I$(LIBC_PATH)/arch/wasm32 -target wasm32 -Wno-shift-op-parentheses -Wno-incompatible-library-redeclaration -Wno-bitwise-op-parentheses
+LIBC_CFLAGS = -fno-stack-protector -nostdinc -I$(LIBC_PATH)/include -I$(LIBC_PATH)/arch/wasm32 -target wasm32 -Wno-shift-op-parentheses -Wno-incompatible-library-redeclaration -Wno-bitwise-op-parentheses
+
+LIBC_INTERNAL_CFLAGS = $(LIBC_CFLAGS) -I$(LIBC_PATH)/src/internal
 
 MONO_CFLAGS = $(LIBC_CFLAGS) -I$(MONO_RUNTIME_PATH) -I$(MONO_RUNTIME_PATH)/mono -I$(MONO_RUNTIME_PATH)/eglib/src -DHAVE_CONFIG_H -D_THREAD_SAFE -DUSE_MMAP -DUSE_MUNMAP -std=gnu99 -fwrapv -DMONO_DLL_EXPORT -Wno-unused-value -Wno-tautological-compare -Wno-bitwise-op-parentheses
 
@@ -31,7 +33,7 @@ build/libmini.bc build/libmetadata.bc build/libeglib.bc build/libsgen.bc build/l
 
 build/libc/%.bc: $(LIBC_PATH)/src/%.c
 	@/bin/mkdir -p $(dir $@)
-	$(CLANG) $(LIBC_CFLAGS) $< -c -emit-llvm -o $@
+	$(CLANG) $(LIBC_INTERNAL_CFLAGS) $< -c -emit-llvm -o $@
 
 build/mini/%.bc : $(MONO_RUNTIME_PATH)/mono/mini/%.c
 	@/bin/mkdir -p $(dir $@)
