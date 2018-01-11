@@ -173,7 +173,7 @@ $ vi Makefile               # make sure the *_PATH variables point to proper loc
 $ make
 ```
 
-This will build the mono runtime as LLVM bitcode, then the libc as LLVM bitcode, then link everything into a `runtime.bc` file. This will also build the `mono-wasm` tool.
+This will build the mono runtime and the libc as LLVM bitcode using our version of clang, then link everything into a `runtime.bc` file. This will also build the `mono-wasm` tool which links against the LLVM and lld libraries. Finally, we will copy the Mono compiler and its `mscorlib.dll` file.
 
 ```
 $ find dist -type f
@@ -182,7 +182,6 @@ dist/bin/mono-wasm
 dist/lib/runtime.bc
 dist/lib/index.js
 dist/lib/mscorlib.dll
-dist/lib/runtime.bc.wasm
 dist/lib/mscorlib.xml
 ```
 
