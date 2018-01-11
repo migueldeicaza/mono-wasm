@@ -203,15 +203,14 @@ skip_link:
 }
 
 static std::string
-assembly_compile(std::string &assembly_path, const char *build_dir)
+assembly_compile(std::string assembly_path, const char *build_dir,
+        std::string bitcode_path)
 {
     static char monoc_path[PATH_MAX] = { '\0' };
     if (monoc_path[0] == '\0') {
         snprintf(monoc_path, sizeof monoc_path, "%s/monoc", bindir_path);
         FILE_MUST_EXIST(monoc_path);
     }
-
-    std::string bitcode_path = assembly_path + ".bc";
 
     if (FILE_IS_OLDER(assembly_path.c_str(), bitcode_path.c_str())) {
         char cmd[PATH_MAX];
@@ -364,12 +363,10 @@ wasm_codegen(llvm::Module *module, llvm::CodeGenOpt::Level opt_level,
     dest.flush();
 }
 
-static std::string
+static void
 wasm_codegen2(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
-        llvm::LLVMContext &context)
+        llvm::LLVMContext &context, std::string wasm_path)
 {
-    auto wasm_path = bitcode_path + ".wasm";
-
     if (FILE_IS_OLDER(bitcode_path.c_str(), wasm_path.c_str())) {
         llvm::SMDiagnostic err;
         auto module = llvm::parseIRFile(bitcode_path, err, context);
@@ -381,8 +378,6 @@ wasm_codegen2(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
 
         wasm_codegen(module.get(), opt, context, wasm_path);
     }
-
-    return wasm_path;
 }
 
 static void
@@ -462,6 +457,17 @@ js_gen(std::vector<std::string> &assembly_paths, const char *output_path)
 
     jsmin_in = NULL;
     jsmin_out = NULL;
+}
+
+static std::string
+swap_extension(std::string path, const char *new_extension)
+{
+    auto pos = path.rfind('.');
+    if (pos != std::string::npos) {
+        assert(pos > 0);
+        path = path.substr(0, pos);
+    }
+    return path + new_extension;
 }
 
 int
@@ -578,24 +584,25 @@ main(int argc, char **argv)
 
     bitcode_paths.push_back(std::string(libdir_path) + "/runtime.bc");
     for (auto assembly_path : assembly_paths) {
+        auto bitcode_path = swap_extension(assembly_path, ".bc");
         T_MEASURE(std::string("IL/IR compile ") + assembly_path,
-                auto bitcode_path = assembly_compile(assembly_path,
-                    build_path));
+                assembly_compile(assembly_path, build_path, bitcode_path));
         bitcode_paths.push_back(bitcode_path);
     }
 
     if (incremental) {
         for (auto bitcode_path : bitcode_paths) {
+            auto wasm_path = swap_extension(bitcode_path, ".wasm");
             T_MEASURE(std::string("IR/WASM codegen ")
                     + bitcode_path.c_str(),
-                    auto path = wasm_codegen2(bitcode_path, opt, context));
-            wasm_paths.push_back(path);
+                    wasm_codegen2(bitcode_path, opt, context, wasm_path));
+            wasm_paths.push_back(wasm_path);
         }
 
         auto path = std::string(build_path) + "/aot_init.wasm";
-        wasm_paths.push_back(path);
         auto aot_init_mod = aot_init_gen(assembly_paths, NULL, context);
         wasm_codegen(aot_init_mod, opt, context, path);
+        wasm_paths.push_back(path);
         delete aot_init_mod;
     }
     else {
