@@ -2,7 +2,7 @@
 
 This project is a proof-of-concept aiming at building C# applications into WebAssembly, by using Mono and compiling/linking everything statically into one .wasm file that can be easily delivered to browsers.
 
-The process does not use Emscripten (or Binaryen) but instead uses the experimental WebAssembly backend of LLVM with `clang` and `lld` to generate the final .wasm code. The goal is to use as few dependencies as possible. At the moment the only dependencies are LLVM, clang and lld trunk.
+The process does not use Emscripten (or Binaryen) but instead uses the experimental WebAssembly backend of LLVM with `clang` and `lld` to generate the final .wasm code. The goal is to use as few dependencies as possible. At the moment the only dependencies are LLVM, `clang` and `lld` trunk.
 
 `mono-wasm` supports 2 build modes: one that links all the LLVM bitcode into one module then performs a WebAssembly codegen on it, and one that compiles project dependencies into WebAssembly incrementally (the runtime and the mscorlib assembly) then uses `lld` to link into a final .wasm file. The later is experimental but will become the default as it allows build times lesser than a second.
 
@@ -174,6 +174,17 @@ $ make
 ```
 
 This will build the mono runtime as LLVM bitcode, then the libc as LLVM bitcode, then link everything into a `runtime.bc` file. This will also build the `mono-wasm` tool.
+
+```
+$ find dist -type f
+dist/bin/monoc
+dist/bin/mono-wasm
+dist/lib/runtime.bc
+dist/lib/index.js
+dist/lib/mscorlib.dll
+dist/lib/runtime.bc.wasm
+dist/lib/mscorlib.xml
+```
 
 Once done, you can build the Hello World sample:
 
