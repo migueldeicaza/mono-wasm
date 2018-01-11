@@ -1,10 +1,12 @@
 # mono-wasm
 
-This project is a proof-of-concept aiming at building C# applications into WebAssembly, by using Mono and  compiling/linking everything statically into one .wasm file that can be easily delivered to browsers.
+This project is a proof-of-concept aiming at building C# applications into WebAssembly, by using Mono and compiling/linking everything statically into one .wasm file that can be easily delivered to browsers.
 
-The process does not use Emscripten but instead uses the experimental WebAssembly backend of LLVM, the LLVM linker and the binaryen tooling to generate the final .wasm code.
+The process does not use Emscripten (or Binaryen) but instead uses the experimental WebAssembly backend of LLVM with `clang` and `lld` to generate the final .wasm code. The goal is to use as few dependencies as possible. At the moment the only dependencies are LLVM, clang and lld trunk.
 
-The final .wasm file is loaded from JavaScript (see `index.js`), which also exposes proper callbacks for system calls that the C library will be calling into. These syscalls are responsible for heap management, I/O, etc.
+`mono-wasm` supports 2 build modes: one that links all the LLVM bitcode into one module then performs a WebAssembly codegen on it, and one that compiles project dependencies into WebAssembly incrementally (the runtime and the mscorlib assembly) then uses `lld` to link into a final .wasm file. The later is experimental but will become the default as it allows build times lesser than a second.
+
+The .wasm file is loaded from JavaScript (see `index.js`), which also exposes proper callbacks for system calls that the C library will be calling into. These syscalls are responsible for heap management, I/O, etc.
 
 This project is a work in progress. Feel free to ping me if you have questions or feedback: laurent.sansonetti@microsoft.com
 
@@ -28,18 +30,12 @@ An ASCII graph is worth a thousand words:
            clang |                           | mono               |
   -target=wasm32 |                           | -aot=llvmonly      |
                  v                           v                    |
-+-------------------------------------------------------+         |
-|                       LLVM bitcode                    |         |
-+----------------------------+--------------------------+         |
++-------------------------------------------------------+         | load
+|                       LLVM bitcode                    |         | metadata
++----------------------------+--------------------------+         | (runtime)
                              | mono-wasm                          |
-                             | (bitcode -> wasm .s)               | load
-                             v                                    | metadata
-+-------------------------------------------------------+         | (runtime)
-|                   LLVM WASM assembly                  |         |
-+----------------------------+--------------------------+         |
-                             | mono-wasm                          |
-                             | (wasm .s -> wasm)                  |
-                             v                                    |
+                             | (bitcode -> wasm)                  | 
+                             v                                    | 
 +-------------------------------------------------------+         |
 |                        index.wasm                     |---------+
 +----------------------------------------+--------------+               
@@ -61,15 +57,16 @@ $ cd ~/src/mono-wasm
 $ git clone git@github.com:lrz/mono-wasm.git build
 ```
 
-### LLVM+clang with WebAssembly target
+### LLVM+clang+lld with WebAssembly target
 
-We need a copy of the LLVM tooling (clang included) with the experimental WebAssembly target enabled. Make sure to build a Release build (as indicated below) otherwise the WASM codegen will be significantly slower.
+We need a copy of the LLVM tooling (clang and lld included) with the experimental WebAssembly target enabled. Make sure to build a Release build (as indicated below) otherwise the WASM codegen will be significantly slower.
 
 ```
 $ cd ~/src/mono-wasm
 $ svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 $ cd llvm/tools
 $ svn co http://llvm.org/svn/llvm-project/cfe/trunk clang
+$ svn co http://llvm.org/svn/llvm-project/lld/trunk lld
 $ cd ../..
 $ mkdir llvm-build
 $ cd llvm-build
@@ -77,7 +74,7 @@ $ cmake -G "Unix Makefiles" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DC
 $ make
 ```
 
-After you did this you should have the LLVM static libraries for the WebAssembly target as well as the `~/src/mono-wasm/llvm-build/bin/clang` program built with the wasm32 target.
+After you did this you should have the LLVM static libraries for the WebAssembly target:
 
 ```
 $ ls ~/src/mono-wasm/llvm-build/lib | grep WebAssembly
@@ -88,8 +85,10 @@ libLLVMWebAssemblyDisassembler.a
 libLLVMWebAssemblyInfo.a
 ```
 
+You should also have the `~/src/mono-wasm/llvm-build/bin/clang` program built with the wasm32 target:
+
 ```
-$ ~/src/llvm-build/bin/clang --version
+$ ~/src/mono-wasm/llvm-build/bin/clang --version
 clang version 5.0.0 (trunk 306818)
 Target: x86_64-apple-darwin15.6.0
 Thread model: posix
@@ -101,24 +100,11 @@ InstalledDir: /Users/lrz/src/mono-wasm/llvm-build/bin
     wasm64     - WebAssembly 64-bit
 ```
 
-### binaryen tools
-
-We need to build the binaryen libraries, that we will use to convert the "assembly" generated by LLVM into WebAssembly text then code.
+You should also have the wasm lld (linker) library:
 
 ```
-$ cd ~/src/mono-wasm
-$ git clone git@github.com:WebAssembly/binaryen.git
-$ cd binaryen
-$ cmake .
-$ make
-```
-
-After you did this you should have a bunch of libraries available (we will need the static ones).
-
-```
-$ ls ~/src/mono-wasm/binaryen/lib
-libasmjs.a			libbinaryen.dylib		libemscripten-optimizer.a	libsupport.a
-libast.a			libcfg.a			libpasses.a		libwasm.a
+$ ls ~/src/mono-wasm/llvm-build/lib/liblldWasm.a
+/Users/lrz/src/mono-wasm/llvm-build/lib/liblldWasm.a
 ```
 
 ### Mono compiler
@@ -200,24 +186,16 @@ $ make
 
 TODO (now):
 
-* JS/.NET interop:
-  * call C# from JS with a set of helper functions around the Mono runtime
-  * call JS from C# with an `eval` + simple DOM access API
 * fix garbage collection (need to figure out how to scan the stack)
 * ship a first 'alpha' release
 
 TODO (later):
 
-* the entire bitcode module -> wasm assembly takes most of the time, we should split it into different modules (per assemblies) and link at the wasm level
 * put mscorlib on a diet (currently 'hello world' is 10MB) by removing more functionality within the `wasm.make` profile and doing more aggressive IL linking
 * work on patches for mono based on the changes made in the fork
 * merge the WebAssembly LLVM code into the mono/llvm fork so that the Mono compiler can target wasm32 directly, and that we can merge the code into `mono-wasm` (we won't have to ship the Mono compiler separately as `monoc`)
 * improve the C# -> JS interop by doing a full C# API replication in JS like embeddinator 4000
 * investigate: threads, sockets, debugger, stack unwinding, simd and atomic operations, etc.
-
-TODO (even later):
-
-* mono should generate wasm directly (both for AOT and JIT codegen)
 
 ## License
 
