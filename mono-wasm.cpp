@@ -381,7 +381,8 @@ wasm_codegen2(std::string &bitcode_path, llvm::CodeGenOpt::Level opt,
 }
 
 static void
-wasm_link(std::vector<std::string> &paths, std::string output)
+wasm_link(std::vector<std::string> &paths, std::string output,
+        bool strip_debug_info)
 {
     std::vector<const char *> args;
     args.push_back("wasm-lld");
@@ -392,6 +393,9 @@ wasm_link(std::vector<std::string> &paths, std::string output)
     args.push_back(output.c_str());
     args.push_back("--allow-undefined");
     args.push_back("--no-entry");
+    if (strip_debug_info) {
+        args.push_back("--strip-debug");
+    }
 
     if (!lld::wasm::link(args, false)) {
         ERROR("failed to link wasm files\n");
@@ -481,6 +485,7 @@ main(int argc, char **argv)
                 "    -o <directory>        Specify output directory\n" \
                 "    -On                   Specify optimization level\n" \
                 "                          (0, 1, 2, 3, default is 2)\n" \
+                "    --strip-debug         Strip debugging information\n" \
                 "    -v                    Verbose output\n" \
                 "    -i                    Incremental build (experimental)\n",
                 argv[0]);
@@ -489,6 +494,7 @@ main(int argc, char **argv)
     const char *build_path = "./build";
     const char *output_path = NULL;
     llvm::CodeGenOpt::Level opt = llvm::CodeGenOpt::Default;
+    bool strip_debug_info = false;
     bool verbose = false;
     bool incremental = false;
     std::vector<std::string> assembly_paths, bitcode_paths, wasm_paths;
@@ -532,6 +538,9 @@ main(int argc, char **argv)
                     default:
                         ERROR("malformed `-On' option\n");
                 }
+            }
+            else if (strcmp(arg, "--strip-debug") == 0) {
+                strip_debug_info = true;
             }
             else {
                 ERROR("invalid `%s' option\n", arg);
@@ -617,7 +626,8 @@ main(int argc, char **argv)
         wasm_paths.push_back(path);
     }
 
-    T_MEASURE("WASM link", wasm_link(wasm_paths, output_wasm));
+    T_MEASURE("WASM link",
+            wasm_link(wasm_paths, output_wasm, strip_debug_info));
 
     T_MEASURE("IL strip", assembly_strip(assembly_paths, output_path));
 
