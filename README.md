@@ -130,14 +130,29 @@ $ cd ~/src/mono-wasm
 $ git clone git@github.com:lrz/mono-wasm-mono.git mono-compiler
 $ cd mono-compiler
 $ ./autogen.sh --host=i386-darwin --with-cross-offsets=offsets-wasm32.h CFLAGS="-DCOMPILE_WASM32 -DMONO_CROSS_COMPILE" CXXFLAGS="-DCOMPILE_WASM32 -DMONO_CROSS_COMPILE" --disable-boehm --with-sigaltstack=no --enable-llvm --enable-llvm-runtime --with-llvm=../llvm-mono-build --disable-btls --with-runtime_preset=testing_aot_full
+$ cd mono
 $ make
 ```
 
 At the end of this process you should have a `mono` executable installed as `~/src/mono-wasm/mono-compiler/mono/mini/mono` built for the i386 architecture.
 
 ```
-$ file mono/mini/mono
+$ file ~/src/mono-wasm/mono-compiler/mono/mini/mono
 mono/mini/mono: Mach-O executable i386
+```
+
+Now let's build the `mscorlib.dll` assembly for the WebAssembly profile. We can't use the mono runtime we just built as it's full AOT, so we use assume you have a normal `mono` runtime in your PATH that we can use. Clearly a hack, but in the meantime it works.
+
+```
+$ cd ~/src/mono-wasm/mono-compiler/mcs/class/corlib
+$ make V=1 PROFILE=wasm RUNTIME=mono STRING_REPLACER=true SN=true
+```
+
+After this you should have the assembly file created in the proper location:
+
+```
+$ file ~/src/mono-wasm/mono-compiler/mcs/class/lib/wasm/mscorlib.dll 
+/Users/lrz/src/mono-wasm/mono-compiler/mcs/class/lib/wasm/mscorlib.dll: PE32 executable (DLL) (console) Intel 80386 Mono/.Net assembly, for MS Windows
 ```
 
 ### Mono runtime
