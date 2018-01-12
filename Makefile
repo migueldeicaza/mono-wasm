@@ -85,5 +85,22 @@ dist-install:   mono-wasm build/runtime.bc mscorlib.dll
 	cp build/runtime.bc dist/lib
 	cp index.js dist/lib
 
+need-version:
+ifndef VERSION
+    $(error VERSION is undefined)
+endif
+
+make-dist-dir:
+DIST_DIR = mono-wasm-macos-$(VERSION)
+
+release:	need-version make-dist-dir dist-install
+	mkdir -p releases
+	(cd releases \
+	  && mkdir $(DIST_DIR) \
+	  && ditto ../dist $(DIST_DIR)/dist \
+	  && ditto ../sample $(DIST_DIR)/sample \
+	  && for i in `ls $(DIST_DIR)/sample`; do (cd $(DIST_DIR)/sample/$$i && make clean); done \
+	  && zip -r $(DIST_DIR).zip $(DIST_DIR))
+
 clean:
 	/bin/rm -rf build dist mscorlib.dll jsmin.o wasm-linker.o mono-wasm
