@@ -19,6 +19,10 @@ This project is a work in progress. Feel free to ping me if you have questions o
 
 This is a work in progress, but you can see `sample/hello/hello.cs` running here: www.hipbyte.com/~lrz/mono-wasm-hello
 
+### Binary releases
+
+Binary releases are avalable here (for testing only): https://github.com/lrz/mono-wasm/releases
+
 ## How does it work?
 
 An ASCII graph is worth a thousand words:
