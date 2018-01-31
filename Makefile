@@ -71,7 +71,7 @@ MONO_WASM_LLVM_COMPONENTS = BitReader BitWriter Core IRReader Linker Object Supp
 jsmin.o:        jsmin.c
 	/usr/bin/clang -c jsmin.c -o jsmin.o
 
-mono-wasm:      jsmin.o wasm-linker.o mono-wasm.cpp
+mono-wasm:      jsmin.o mono-wasm.cpp
 	/usr/bin/clang++ $(shell $(LLVM_PATH)/bin/llvm-config --cxxflags --ldflags) -Wno-gnu $(MONO_WASM_CXXFLAGS) -I$(shell $(LLVM_PATH)/bin/llvm-config --src-root)/tools/lld/include -g mono-wasm.cpp -o mono-wasm -lncurses -lz jsmin.o $(shell $(LLVM_PATH)/bin/llvm-config --libs $(MONO_WASM_LLVM_COMPONENTS)) -llldCommon -llldCore -llldDriver -llldReaderWriter -llldWasm
 
 dist-install:   mono-wasm build/runtime.bc mscorlib.dll
@@ -103,4 +103,4 @@ release:	need-version make-dist-dir dist-install
 	  && zip -r $(DIST_DIR).zip $(DIST_DIR))
 
 clean:
-	/bin/rm -rf build dist mscorlib.dll jsmin.o wasm-linker.o mono-wasm
+	/bin/rm -rf build dist mscorlib.dll jsmin.o mono-wasm
