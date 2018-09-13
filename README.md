@@ -1,3 +1,9 @@
+# ATTENTION: THIS REPOSITORY IS NOT IN ACTIVE DEVELOPMENT ANYMORE
+
+**Everthing related to using Mono with WebAssembly now is included in the offical mono repository.**
+
+For further instructions see: https://github.com/mono/mono/tree/master/sdks/wasm
+
 # mono-wasm
 
 This project is a proof-of-concept aiming at building C# applications into WebAssembly, by using Mono and compiling/linking everything statically into one .wasm file that can be easily delivered to browsers.
@@ -17,7 +23,7 @@ This project is a work in progress. Feel free to ping me if you have questions o
 
 ## Current status
 
-This is a work in progress, but you can see `sample/hello/hello.cs` running here: www.hipbyte.com/~lrz/mono-wasm-hello
+Not in active development anymore. See top of README for further information.
 
 ### Binary releases
 
